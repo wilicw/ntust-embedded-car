@@ -2,3 +2,4 @@
 cmake-build-*/
 env/
 build/
+*.swp
