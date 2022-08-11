@@ -8,9 +8,12 @@
 
 class Servo {
 private:
+  int addr;
   int fd;
   uint16_t data[3] = {0x3, 0, 0};
 public:
+  Servo(int);
+
   void init();
 
   void turn(int, int);

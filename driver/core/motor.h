@@ -8,10 +8,13 @@
 
 class Motor {
 private:
+  int addr;
   int fd;
   uint8_t data[5] = {0x1, 0, 0, 0, 0};
 
 public:
+  Motor(int);
+
   void init();
 
   void turn(int, int);

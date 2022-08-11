@@ -1,7 +1,9 @@
 #include "servo.h"
 
+Servo::Servo(int addr):addr(addr){}
+
 void Servo::init() {
-  this->fd = wiringPiI2CSetup(I2C_ADDR);
+  this->fd = wiringPiI2CSetup(this->addr);
 }
 
 void Servo::turn(int id, int angle) {

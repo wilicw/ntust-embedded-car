@@ -10,11 +10,14 @@
 #include "servo.h"
 #include "ultrasonic.h"
 
+#define RUNRUNRUN
+
 using namespace std;
-Motor motor;
+
+Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
-Ultrasonic ur;
-Servo servo;
+Ultrasonic ur(EchoPin, TrigPin);
+Servo servo(I2C_ADDR);
 
 void signal_callback_handler(int signum) {
   motor.stop();
@@ -38,6 +41,8 @@ int main() {
   const static int forward_speed = 150;
   servo.turn(1, 90);
   servo.turn(2, 125);
+
+#ifdef RUNRUNRUN
   try {
     for (;;) {
       left_sensor = ir.left();
@@ -66,5 +71,6 @@ int main() {
   catch (...) {
     motor.stop();
   }
+#endif
   return 0;
 }

@@ -1,7 +1,9 @@
 #include "motor.h"
 
+Motor::Motor(int addr):addr(addr){}
+
 void Motor::init() {
-  this->fd = wiringPiI2CSetup(I2C_ADDR);
+  this->fd = wiringPiI2CSetup(this->addr);
 }
 
 void Motor::turn(int left, int right) {

@@ -4,7 +4,11 @@
 #include <wiringPi.h>
 
 class Ultrasonic {
+private:
+  int echo_pin, trig_pin;
 public:
+  Ultrasonic(int, int);
+
   void init();
 
   double distance();
