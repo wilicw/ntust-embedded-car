@@ -41,63 +41,62 @@ int main() {
     const static int forward_speed = 150;
     servo.turn(1, 90);
     servo.turn(2, 125);
-    
+
     try {
         for (;;) {
-			servo.turn(1, 90);
-			servo.turn(2, 125);
+            servo.turn(1, 90);
+            servo.turn(2, 125);
             left_sensor = ir.left();
             right_sensor = ir.right();
             distance = ur.distance();
 
             if (distance < barrier) {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(turning_speed, -turning_speed);
-            #else
+#else
                 cout << "Turn Right" << endl;
-            #endif
+#endif
             } else if (false) {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(-turning_speed, turning_speed);
-            #else
+#else
                 cout << "Turn Left" << endl;
-            #endif
+#endif
             } else if (left_sensor && right_sensor == true) {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(forward_speed, forward_speed);
-            #else
+#else
                 cout << "Forward" << endl;
-            #endif
+#endif
             } else if (left_sensor == false) {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(turning_speed * 0.8, -turning_speed * 0.8);
-            #else
+#else
                 cout << "Turn Right by 0.8" << endl;
-            #endif
+#endif
             } else if (right_sensor == false) {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(-turning_speed * 0.8, turning_speed * 0.8);
-            #else
+#else
                 cout << "Turn Left by 0.8" << endl;
-            #endif
+#endif
             } else {
-            #ifdef RUNRUNRUN
+#ifdef RUNRUNRUN
                 motor.turn(forward_speed, forward_speed);
-            #else
+#else
                 cout << "Forward" << endl;
-            #endif
+#endif
             }
 
             /* !!! */
-            delay(10); // !! WARNING DO NOT REMOVE !!
+            delay(10);  // !! WARNING DO NOT REMOVE !!
             /* !!! */
         }
-    }
-    catch (...) {
+    } catch (...) {
         motor.stop();
     }
 
-	motor.stop();
-	
+    motor.stop();
+
     return 0;
 }
