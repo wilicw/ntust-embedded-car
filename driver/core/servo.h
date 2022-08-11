@@ -2,18 +2,22 @@
 #define DRIVER_SERVO_H
 
 #include <stdint.h>
-#include <wiringPiI2C.h>
-#include <wiringPi.h>
 #include <unistd.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
 
 class Servo {
-private:
-  int fd;
-  uint16_t data[3] = {0x3, 0, 0};
-public:
-  void init();
+   private:
+    int addr;
+    int fd;
+    uint16_t data[3] = {0x3, 0, 0};
 
-  void turn(int, int);
+   public:
+    Servo(int);
+
+    void init();
+
+    void turn(int, int);
 };
 
-#endif //DRIVER_SERVO_H
+#endif  // DRIVER_SERVO_H

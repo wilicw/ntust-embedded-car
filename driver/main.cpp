@@ -1,7 +1,7 @@
-#include <iostream>
-#include <wiringPi.h>
-#include <stdint.h>
 #include <signal.h>
+#include <stdint.h>
+#include <wiringPi.h>
+#include <iostream>
 
 #include "bsp.h"
 
@@ -10,13 +10,14 @@
 #include "servo.h"
 #include "ultrasonic.h"
 
-#define RUNRUNRUN
+//#define RUNRUNRUN
 
 using namespace std;
-Motor motor;
+
+Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
-Ultrasonic ur;
-Servo servo;
+Ultrasonic ur(EchoPin, TrigPin);
+Servo servo(I2C_ADDR);
 
 void signal_callback_handler(int signum) {
     motor.stop();
@@ -75,5 +76,6 @@ int main() {
 #endif
 
 	motor.stop();
+	
     return 0;
 }

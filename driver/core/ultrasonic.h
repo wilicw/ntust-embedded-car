@@ -4,10 +4,15 @@
 #include <wiringPi.h>
 
 class Ultrasonic {
-public:
-  void init();
+   private:
+    int echo_pin, trig_pin;
 
-  double distance();
+   public:
+    Ultrasonic(int, int);
+
+    void init();
+
+    double distance();
 };
 
-#endif //DRIVER_ULTRASONIC_H
+#endif  // DRIVER_ULTRASONIC_H

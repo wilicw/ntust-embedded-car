@@ -4,17 +4,17 @@
 #include <wiringPi.h>
 
 class IR {
-private:
-  int left_pin, right_pin;
-public:
-  IR(int, int);
+   private:
+    int left_pin, right_pin;
 
-  void init();
+   public:
+    IR(int, int);
 
-  int left();
+    void init();
 
-  int right();
+    int left();
 
+    int right();
 };
 
-#endif //DRIVER_IR_H
+#endif  // DRIVER_IR_H
