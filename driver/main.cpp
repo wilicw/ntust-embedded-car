@@ -42,7 +42,6 @@ int main() {
     servo.turn(1, 90);
     servo.turn(2, 125);
     
-#ifdef RUNRUNRUN
     try {
         for (;;) {
 			servo.turn(1, 90);
@@ -52,17 +51,41 @@ int main() {
             distance = ur.distance();
 
             if (distance < barrier) {
+            #ifdef RUNRUNRUN
                 motor.turn(turning_speed, -turning_speed);
+            #else
+                cout << "Turn Right" << endl;
+            #endif
             } else if (false) {
+            #ifdef RUNRUNRUN
                 motor.turn(-turning_speed, turning_speed);
+            #else
+                cout << "Turn Left" << endl;
+            #endif
             } else if (left_sensor && right_sensor == true) {
+            #ifdef RUNRUNRUN
                 motor.turn(forward_speed, forward_speed);
+            #else
+                cout << "Forward" << endl;
+            #endif
             } else if (left_sensor == false) {
+            #ifdef RUNRUNRUN
                 motor.turn(turning_speed * 0.8, -turning_speed * 0.8);
+            #else
+                cout << "Turn Right by 0.8" << endl;
+            #endif
             } else if (right_sensor == false) {
+            #ifdef RUNRUNRUN
                 motor.turn(-turning_speed * 0.8, turning_speed * 0.8);
+            #else
+                cout << "Turn Left by 0.8" << endl;
+            #endif
             } else {
+            #ifdef RUNRUNRUN
                 motor.turn(forward_speed, forward_speed);
+            #else
+                cout << "Forward" << endl;
+            #endif
             }
 
             /* !!! */
@@ -73,7 +96,6 @@ int main() {
     catch (...) {
         motor.stop();
     }
-#endif
 
 	motor.stop();
 	
