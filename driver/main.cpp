@@ -10,7 +10,7 @@
 #include "servo.h"
 #include "ultrasonic.h"
 
-#define RUNRUNRUN
+//#define RUNRUNRUN
 
 using namespace std;
 
