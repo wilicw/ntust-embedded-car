@@ -114,10 +114,10 @@ int main() {
     servo.turn(1, 90);
     servo.turn(2, 125);
 
-    // thread control_thread(control_task);
+    thread control_thread(control_task);
     thread vision_thread(vision_task);
 
-    // control_thread.join();
+    control_thread.join();
     vision_thread.join();
 
     motor.stop();
