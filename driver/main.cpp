@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <wiringPi.h>
 #include <iostream>
+#include <opencv2/opencv.hpp>
 #include <thread>
 
 #include "bsp.h"
@@ -85,8 +86,19 @@ void control_task() {
 }
 
 void vision_task() {
+opencamera:
+    static cv::VideoCapture cap(0);
+    if (!cap.isOpened()) goto opencamera;
+
+    static int ret;
+    cv::Mat frame;
+
     for (;;) {
-        delay(100);
+        ret = cap.read(frame);
+        if (!ret) continue;
+
+        cv::imwrite("test.jpg", frame);
+        delay(10);
     }
 }
 
@@ -102,10 +114,10 @@ int main() {
     servo.turn(1, 90);
     servo.turn(2, 125);
 
-    thread control_thread(control_task);
+    // thread control_thread(control_task);
     thread vision_thread(vision_task);
 
-    control_thread.join();
+    // control_thread.join();
     vision_thread.join();
 
     motor.stop();
