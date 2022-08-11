@@ -11,6 +11,7 @@
 #include "motor.h"
 #include "servo.h"
 #include "ultrasonic.h"
+#include "vision.h"
 
 //#define RUN_CAR
 
@@ -20,6 +21,8 @@ Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
 Ultrasonic ur(EchoPin, TrigPin);
 Servo servo(I2C_ADDR);
+
+Vision v;
 
 void signal_callback_handler(int signum) {
     motor.stop();
@@ -91,13 +94,16 @@ opencamera:
     if (!cap.isOpened()) goto opencamera;
 
     static int ret;
-    cv::Mat frame;
+    static cv::Mat frame;
+    static cv::Mat result;
 
     for (;;) {
         ret = cap.read(frame);
         if (!ret) continue;
 
-        cv::imwrite("test.jpg", frame);
+        v.process(frame, result);
+
+        cv::imwrite("test.jpg", result);
         delay(10);
     }
 }
