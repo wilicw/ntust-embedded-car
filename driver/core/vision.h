@@ -7,10 +7,8 @@
 using namespace std;
 
 class Vision {
-#ifdef ENABLE_CV
    public:
     void process(cv::Mat&, cv::Mat&);
-#endif
 };
 
 #endif  // DRIVER_VISION_H

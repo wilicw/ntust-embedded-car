@@ -14,7 +14,7 @@
 #include "vision.h"
 
 // #define ENABLE_MOTOR
-//#define ENABLE_CV
+#define ENABLE_CV
 
 #ifdef ENABLE_CV
 #include <opencv2/opencv.hpp>
@@ -101,6 +101,11 @@ void vision_task() {
     while (!cap.isOpened()) {
     }
 
+    cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 680);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    // cap.set(cv::CAP_PROP_FPS, 90);
+
     static int ret;
     static cv::Mat frame;
     static cv::Mat result;
@@ -111,9 +116,10 @@ void vision_task() {
 
         v.process(frame, result);
 
-        cv::imwrite("test.jpg", result);
+        cv::imwrite("test.jpg", frame);
         delay(10);
     }
+    cap.release();
 #endif
 }
 
