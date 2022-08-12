@@ -3,7 +3,6 @@
 #include <wiringPi.h>
 #include <atomic>
 #include <iostream>
-#include <opencv2/opencv.hpp>
 #include <thread>
 
 #include "bsp.h"
@@ -14,8 +13,12 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-#define RUN_CAR
-#define CV_EN
+// #define ENABLE_MOTOR
+//#define ENABLE_CV
+
+#ifdef ENABLE_CV
+#include <opencv2/opencv.hpp>
+#endif
 
 #define WALL false
 
@@ -56,13 +59,13 @@ void control_task() {
         distance = ur.distance();
 
         barrier = current_speed * 0.09 + 13;
-#ifdef RUN_CAR
+#ifdef ENABLE_MOTOR
         if (distance < barrier) {
             cout << distance << endl;
             if (left_sensor == WALL)
-                motor.turn(turning_speed, -turning_speed+20);
+                motor.turn(turning_speed, -turning_speed + 20);
             else
-                motor.turn(-turning_speed+20, turning_speed);
+                motor.turn(-turning_speed + 20, turning_speed);
             current_speed = init_speed;
         } else if (!(left_sensor ^ right_sensor)) {
             cout << "Forward" << endl;
@@ -84,25 +87,7 @@ void control_task() {
                 turning_speed * (turning_scale - 0.2 - right_analog / 255.0),
                 turning_speed * turning_scale);
         }
-
 #endif
-
-#ifndef RUN_CAR
-        if (distance < barrier) {
-            cout << "R" << endl;
-        } else if (false) {
-            cout << "L" << endl;
-        } else if (left_sensor && right_sensor == true) {
-            cout << "D" << endl;
-        } else if (left_sensor == WALL) {
-            cout << "Rs" << endl;
-        } else if (right_sensor == WALL) {
-            cout << "Ls" << endl;
-        } else {
-            cout << "D" << endl;
-        }
-#endif
-
         /* !!! */
         delay(10);  // !! WARNING DO NOT REMOVE !!
         /* !!! */
@@ -111,10 +96,10 @@ void control_task() {
 }
 
 void vision_task() {
-#ifdef CV_EN
-opencamera:
+#ifdef ENABLE_CV
     static cv::VideoCapture cap(0);
-    if (!cap.isOpened()) goto opencamera;
+    while (!cap.isOpened()) {
+    }
 
     static int ret;
     static cv::Mat frame;

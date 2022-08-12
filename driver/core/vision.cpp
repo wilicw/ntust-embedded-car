@@ -1,5 +1,7 @@
 #include "vision.h"
 
+#ifdef ENABLE_CV
+
 void Vision::process(cv::Mat &frame, cv::Mat &output) {
     vector<cv::Mat> channel;
     cv::split(frame, channel);
@@ -10,3 +12,5 @@ void Vision::process(cv::Mat &frame, cv::Mat &output) {
                           25);
     //    cv::threshold(red_frame, thresh, 100, 255, cv::THRESH_BINARY);
 }
+
+#endif
