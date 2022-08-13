@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 project(driver)
 
 set(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_COMPILER "g++")
 
 find_package(OpenCV REQUIRED)
 find_package(Threads)
