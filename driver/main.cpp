@@ -8,6 +8,7 @@
 #include "bsp.h"
 
 #include "ir.h"
+#include "model.h"
 #include "motor.h"
 #include "servo.h"
 #include "ultrasonic.h"
@@ -32,6 +33,8 @@ Ultrasonic ur(EchoPin, TrigPin);
 Servo servo(I2C_ADDR);
 
 Vision v;
+
+//Model m("model.tflite");
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
