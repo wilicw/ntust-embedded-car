@@ -14,14 +14,14 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-// #define ENABLE_MOTOR
+#define ENABLE_MOTOR
 #define ENABLE_CV
 
 #ifdef ENABLE_CV
 #include <opencv2/opencv.hpp>
 #endif
 
-#define WALL false
+#define NOWALL false
 
 using namespace std;
 
@@ -34,7 +34,7 @@ Servo servo(I2C_ADDR);
 
 Vision v;
 
-//Model m("model.tflite");
+// Model m("model.tflite");
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
@@ -46,10 +46,10 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_speed = 220;
+    const static int turning_speed = 185;
     const static int forward_speed = 180;
     const static float turning_scale = 0.9;
-    const static int init_speed = 80;
+    const static int init_speed = 50;
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
@@ -65,7 +65,7 @@ void control_task() {
 #ifdef ENABLE_MOTOR
         if (distance < barrier) {
             cout << distance << endl;
-            if (left_sensor == WALL)
+            if (left_sensor == NOWALL)
                 motor.turn(turning_speed, -turning_speed + 20);
             else
                 motor.turn(-turning_speed + 20, turning_speed);
@@ -75,14 +75,14 @@ void control_task() {
             left_analog = right_analog = 0;
             if (current_speed <= forward_speed) current_speed += 5;
             motor.turn(current_speed, current_speed);
-        } else if (left_sensor == WALL) {
+        } else if (left_sensor == NOWALL) {
             if (left_analog < 255) left_analog += 5;
             right_analog = 0;
             cout << "Right" << endl;
             motor.turn(
                 turning_speed * turning_scale,
                 turning_speed * (turning_scale - 0.2 - left_analog / 255.0));
-        } else if (right_sensor == WALL) {
+        } else if (right_sensor == NOWALL) {
             if (right_analog < 255) right_analog += 5;
             left_analog = 0;
             cout << "Left" << endl;
