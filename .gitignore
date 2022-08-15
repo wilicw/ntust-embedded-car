@@ -4,3 +4,5 @@ env/
 build/
 bin/
 *.swp
+.idea/
+.ipynb_checkpoints/
