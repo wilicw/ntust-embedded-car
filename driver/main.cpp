@@ -48,8 +48,9 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_speed = 185;
-    const static int forward_speed = 180;
+    const static int right_speed = 180;
+    const static int turning_speed = 120;
+    const static int forward_speed = 80;
     const static float turning_scale = 0.9;
     const static int init_speed = 50;
     static int current_speed = init_speed;
@@ -63,14 +64,15 @@ void control_task() {
         right_sensor = ir.right();
         distance = ur.distance();
 
-        barrier = current_speed * 0.09 + 13;
+        barrier = current_speed * 0.09 + 10;
 #ifdef ENABLE_MOTOR
         if (distance < barrier) {
             cout << distance << endl;
             if (left_sensor == NOWALL)
-                motor.turn(turning_speed, -turning_speed + 20);
+                motor.turn(right_speed, -right_speed + 20);
             else
-                motor.turn(-turning_speed + 20, turning_speed);
+                motor.turn(-right_speed + 20, right_speed);
+            delay(80);
             current_speed = init_speed;
         } else if (!(left_sensor ^ right_sensor)) {
             cout << "Forward" << endl;
@@ -103,7 +105,7 @@ void control_task() {
 void vision_task() {
 #ifdef ENABLE_CV
 #ifdef CAPTURE_IMG
-	
+
 opencamera:
     static cv::VideoCapture cap(0);
     //    cout << "opening" << endl;
@@ -118,27 +120,27 @@ opencamera:
         ret = cap.read(frame);
         if (!ret) continue;
         // cout << ss.str() << endl;
-        cv::imwrite("/pic" + to_string(pics) + ".jpg", frame);
+        cv::imwrite("./picture/pic" + to_string(pics) + ".jpg", frame);
         pics++;
-        delay(50);
+        delay(10);
     }
     cap.release();
 #elif defined(CAR_RUNNING)
-	//cv::Mat a = cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
-	//Mat a = imread("D:/RayChang/IMG_0102.jpg");
-	clock_t clk = clock();
-	try {
-		cv::resize(a, a, cv::Size(640, 480));
-		sign_info found;
-		v.sign_finding(a, found);
-		std::cout << found.area << " " << found.center_position << std::endl;
-		imshow("FND", found.cropped);
-		cv::waitKey(0);
-		cv::destroyAllWindows();
-	}
-	catch (...) {
-		std::cout << "Nothing found" << std::endl;
-	}
+    // cv::Mat a =
+    // cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
+    // Mat a = imread("D:/RayChang/IMG_0102.jpg");
+    clock_t clk = clock();
+    try {
+        cv::resize(a, a, cv::Size(640, 480));
+        sign_info found;
+        v.sign_finding(a, found);
+        std::cout << found.area << " " << found.center_position << std::endl;
+        imshow("FND", found.cropped);
+        cv::waitKey(0);
+        cv::destroyAllWindows();
+    } catch (...) {
+        std::cout << "Nothing found" << std::endl;
+    }
 #endif
 #endif
 }

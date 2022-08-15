@@ -2,7 +2,7 @@
 #include<opencv2/opencv.hpp>
 #include<string>
 #include<vector>
-#include"rectangles_information.h"
+//#include"rectangles_information.h"
 
 namespace raw_data_processing {
 	cv::Mat& imgSharpen(const cv::Mat& img, char* arith);
