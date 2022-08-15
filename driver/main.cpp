@@ -16,6 +16,8 @@
 
 // #define ENABLE_MOTOR
 #define ENABLE_CV
+#define CAPTURE_IMG
+#define CAR_RUNNING
 
 #ifdef ENABLE_CV
 #include <opencv2/opencv.hpp>
@@ -100,29 +102,43 @@ void control_task() {
 
 void vision_task() {
 #ifdef ENABLE_CV
+#ifdef CAPTURE_IMG
+	
+opencamera:
     static cv::VideoCapture cap(0);
-    while (!cap.isOpened()) {
-    }
+    //    cout << "opening" << endl;
+    if (!cap.isOpened()) goto opencamera;
 
-    cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, 680);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-    // cap.set(cv::CAP_PROP_FPS, 90);
-
+    cap.set(cv::CAP_PROP_FPS, 90);
+    static unsigned int pics = 0;
     static int ret;
     static cv::Mat frame;
-    static cv::Mat result;
-
+    cout << "CV camera opened" << endl;
     while (!exit_thread) {
         ret = cap.read(frame);
         if (!ret) continue;
-
-        v.process(frame, result);
-
-        cv::imwrite("test.jpg", frame);
-        delay(10);
+        // cout << ss.str() << endl;
+        cv::imwrite("mypicture/pic" + to_string(pics) + ".jpg", frame);
+        pics++;
+        delay(50);
     }
     cap.release();
+#elif defined(CAR_RUNNING)
+	cv::Mat a = cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
+	//Mat a = imread("D:/RayChang/IMG_0102.jpg");
+	clock_t clk = clock();
+	try {
+		cv::resize(a, a, cv::Size(640, 480));
+		sign_info found = sign_finding(a);
+		std::cout << found.area << " " << found.center_position << std::endl;
+		imshow("FND", found.cropped);
+		cv::waitKey(0);
+		cv::destroyAllWindows();
+	}
+	catch (...) {
+		std::cout << "Nothing found" << std::endl;
+	}
+#endif
 #endif
 }
 
