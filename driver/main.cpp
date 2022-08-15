@@ -118,18 +118,19 @@ opencamera:
         ret = cap.read(frame);
         if (!ret) continue;
         // cout << ss.str() << endl;
-        cv::imwrite("mypicture/pic" + to_string(pics) + ".jpg", frame);
+        cv::imwrite("/pic" + to_string(pics) + ".jpg", frame);
         pics++;
         delay(50);
     }
     cap.release();
 #elif defined(CAR_RUNNING)
-	cv::Mat a = cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
+	//cv::Mat a = cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
 	//Mat a = imread("D:/RayChang/IMG_0102.jpg");
 	clock_t clk = clock();
 	try {
 		cv::resize(a, a, cv::Size(640, 480));
-		sign_info found = sign_finding(a);
+		sign_info found;
+		v.sign_finding(a, found);
 		std::cout << found.area << " " << found.center_position << std::endl;
 		imshow("FND", found.cropped);
 		cv::waitKey(0);
