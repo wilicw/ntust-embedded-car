@@ -16,6 +16,7 @@
 
 // #define ENABLE_MOTOR
 #define ENABLE_CV
+#define ENABLE_TF
 
 #ifdef ENABLE_CV
 #include <opencv2/opencv.hpp>
@@ -34,7 +35,10 @@ Servo servo(I2C_ADDR);
 
 Vision v;
 
-// Model m("model.tflite");
+Model m("/home/pi/project/carNN/model.tflite");
+
+std::queue<sign_info_t> cv2model_queue;
+std::mutex cv2model_mux;
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
@@ -108,25 +112,43 @@ opencamera:
     if (!cap.isOpened()) goto opencamera;
 
     cap.set(cv::CAP_PROP_FPS, 90);
-    static unsigned int pics = 0;
+
     static int ret;
     static cv::Mat frame;
-    int t1, t2;
     while (!exit_thread) {
-        t1 = micros();
         ret = cap.read(frame);
         if (!ret) continue;
 
-        sign_info_t found = v.processing(frame);
+        sign_info_t found = std::move(v.processing(frame));
+        cout << found.area << endl;
         if (found.area == 0) continue;
-
-        t2 = micros();
         cv::imwrite("test.jpg", found.cropped);
-        cout << t2 - t1 << endl;
+        m.evaluate(found.cropped);
+        //        cv2model_mux.lock();
+        //        cv2model_queue.push(std::move(found));
+        //        cv2model_mux.unlock();
+
         delay(10);
     }
     cap.release();
 
+#endif
+}
+
+void model_task() {
+#ifdef ENABLE_TF
+    while (!exit_thread) {
+        cv2model_mux.lock();
+        while (!cv2model_queue.empty()) {
+            sign_info_t sign = std::move(cv2model_queue.front());
+            cv2model_queue.pop();
+            cv2model_mux.unlock();
+
+            cout << sign.area << endl;
+
+            sign.cropped.release();
+        }
+    }
 #endif
 }
 
@@ -145,9 +167,11 @@ int main() {
 
     thread control_thread(control_task);
     thread vision_thread(vision_task);
+    thread model_thread(model_task);
 
     control_thread.join();
     vision_thread.join();
+    model_thread.join();
 
     motor.stop();
 

@@ -13,10 +13,12 @@ using namespace std;
 class Model {
    private:
     unique_ptr<tflite::FlatBufferModel> model;
+    tflite::ops::builtin::BuiltinOpResolver resolver;
+    unique_ptr<tflite::Interpreter> interpreter;
 
    public:
     Model(const char *);
-    void evaluate(cv::Mat&);
+    void evaluate(cv::Mat);
 };
 
 #endif  // DRIVER_MODEL_H
