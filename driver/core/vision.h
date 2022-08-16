@@ -8,8 +8,8 @@ using namespace std;
 
 typedef struct {
     cv::Mat cropped;
-    int area = 0;
-    cv::Point center_position = cv::Point(0, 0);
+    int area;
+    cv::Point center_position;
 } sign_info_t;
 
 class Vision {

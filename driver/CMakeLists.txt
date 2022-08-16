@@ -9,8 +9,9 @@ find_package(OpenCV REQUIRED)
 find_package(Threads)
 find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 find_library(TF_LIBRARIES NAMES tensorflow-lite)
+find_package(Boost REQUIRED)
 
-include_directories(core ${OpenCV_INCLUDE_DIRS})
+include_directories(core ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 
 file(GLOB_RECURSE SRC_FILES "core/*.cpp")
 
@@ -21,4 +22,5 @@ target_link_libraries(driver
         ${CMAKE_THREAD_LIBS_INIT}
         ${OpenCV_LIBS}
         ${CMAKE_DL_LIBS}
-        ${TF_LIBRARIES})
+        ${TF_LIBRARIES}
+        ${Boost_LIBRARIES})

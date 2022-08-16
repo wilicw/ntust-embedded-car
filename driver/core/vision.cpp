@@ -54,6 +54,9 @@ sign_info_t Vision::processing(cv::Mat picture) {
         ret_sign_info.cropped = cropped;
         ret_sign_info.center_position = searched_rectangles[mxI].contour_center;
         ret_sign_info.area = searched_rectangles[mxI].contour_area;
+    } else {
+        ret_sign_info.area = 0;
+        ret_sign_info.center_position = cv::Point(0, 0);
     }
     return ret_sign_info;
 }

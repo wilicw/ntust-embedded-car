@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <wiringPi.h>
 #include <atomic>
+#include <boost/lockfree/queue.hpp>
 #include <iostream>
 #include <thread>
 
@@ -35,8 +36,8 @@ Servo servo(I2C_ADDR);
 Vision v;
 Model m("/home/pi/project/carNN/model.tflite");
 
-std::queue<sign_info_t> cv2model_queue;
-std::mutex cv2model_mux;
+boost::lockfree::queue<cv::Mat*, boost::lockfree::fixed_sized<true> >
+    cv2model_queue(256);
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
@@ -58,8 +59,8 @@ void control_task() {
     static uint8_t left_analog = 0, right_analog = 0;
 
     while (!exit_thread) {
-        servo.turn(1, 90);
-        servo.turn(2, 125);
+        servo.turn(1, 125);
+        servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
         distance = ur.distance();
@@ -119,12 +120,8 @@ opencamera:
 
         sign_info_t found = std::move(v.processing(frame));
         if (found.area == 0) continue;
-
-        cv2model_mux.lock();
-        cv2model_queue.push(std::move(found));
-        cv2model_mux.unlock();
-
-        delay(10);
+        cv::Mat* cropped = new cv::Mat(found.cropped);
+        cv2model_queue.push(cropped);
     }
     cap.release();
 
@@ -134,21 +131,15 @@ opencamera:
 void model_task() {
 #ifdef ENABLE_TF
     while (!exit_thread) {
-        int t1, t2;
-        cv2model_mux.lock();
         while (!cv2model_queue.empty()) {
-            sign_info_t sign = std::move(cv2model_queue.front());
-            cv2model_queue.pop();
-            cv2model_mux.unlock();
+            cv::Mat* sign;
+            cv2model_queue.pop(sign);
 
-            cv::imwrite("test.jpg", sign.cropped);
-            predict_t p = m.evaluate(sign.cropped);
+            cv::imwrite("test.jpg", *sign);
+            predict_t p = m.evaluate(*sign);
+            delete sign;
             cout << p.possibility << " " << p.index << endl;
-
-            sign.cropped.release();
         }
-        cv2model_mux.unlock();
-        delay(10);
     }
 #endif
 }
@@ -162,9 +153,6 @@ int main() {
     motor.init();
     ir.init();
     ur.init();
-
-    servo.turn(1, 90);
-    servo.turn(2, 125);
 
     thread control_thread(control_task);
     thread vision_thread(vision_task);
