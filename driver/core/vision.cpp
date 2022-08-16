@@ -4,32 +4,32 @@
 
 sign_info_t Vision::processing(cv::Mat picture) {
     sign_info_t ret_sign_info;
-	
-	//read the image and convert it to grayscale:
-	cv::Mat gray;
-	cv::cvtColor(picture, gray, cv::COLOR_RGB2GRAY);
 
-	//Cool, let's compute the laplacian of the gray image:
-	cv::Laplacian(gray, gray, CV_64F);
+    // read the image and convert it to grayscale:
+    cv::Mat gray;
+    cv::cvtColor(picture, gray, cv::COLOR_RGB2GRAY);
 
-	//Prepare to compute the mean and standard deviation of the laplacian:
-	cv::Scalar mean, stddev;
-	cv::meanStdDev(gray, mean, stddev, cv::Mat());
+    // Cool, let's compute the laplacian of the gray image:
+    cv::Laplacian(gray, gray, CV_64F);
 
-	//Let’s compute the variance:
-	double variance = stddev.val[0] * stddev.val[0];
+    // Prepare to compute the mean and standard deviation of the laplacian:
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(gray, mean, stddev, cv::Mat());
 
-	if (variance <= blurThreshold) {
-		return ret_sign_info;
-	}
-	
+    // Let’s compute the variance:
+    double variance = stddev.val[0] * stddev.val[0];
+
+    if (variance <= blurThreshold) {
+        return ret_sign_info;
+    }
+
     vector<cv::Mat> channels;
     vector<cv::Mat> cropped_images;
     cv::copyMakeBorder(picture, picture, 10, 10, 10, 10, cv::BORDER_CONSTANT,
                        0);
     cv::Mat white_specialized = raw_data_processing::white_filter(picture);
-    //picture = picture * 3 + (-200.0);  // contrast_increasing
-    split(picture, channels);          //[0]->b, [1]->g [2]->r
+    // picture = picture * 3 + (-200.0);  // contrast_increasing
+    split(picture, channels);  //[0]->b, [1]->g [2]->r
 
     cv::Mat R_single_channel = raw_data_processing::emphasize_first(
         channels[2], channels[0], channels[1]);
@@ -55,5 +55,5 @@ sign_info_t Vision::processing(cv::Mat picture) {
         ret_sign_info.center_position = searched_rectangles[mxI].contour_center;
         ret_sign_info.area = searched_rectangles[mxI].contour_area;
     }
-	return ret_sign_info;
+    return ret_sign_info;
 }
