@@ -1,13 +1,13 @@
 #include <signal.h>
 #include <stdint.h>
 #include <wiringPi.h>
+
 #include <atomic>
 #include <boost/lockfree/queue.hpp>
 #include <iostream>
 #include <thread>
 
 #include "bsp.h"
-
 #include "ir.h"
 #include "model.h"
 #include "motor.h"
@@ -36,8 +36,7 @@ Servo servo(I2C_ADDR);
 Vision v;
 Model m("/home/pi/project/carNN/model.tflite");
 
-boost::lockfree::queue<cv::Mat*, boost::lockfree::fixed_sized<true> >
-    cv2model_queue(256);
+boost::lockfree::queue<cv::Mat*, boost::lockfree::fixed_sized<true>> cv2model_queue(256);
 
 void signal_callback_handler(int signum) {
     exit_thread = true;

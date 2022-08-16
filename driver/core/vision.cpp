@@ -1,4 +1,5 @@
 #include "vision.h"
+
 #include "raw_data_processing.h"
 #define blurThreshold 15
 
@@ -25,23 +26,17 @@ sign_info_t Vision::processing(cv::Mat picture) {
 
     vector<cv::Mat> channels;
     vector<cv::Mat> cropped_images;
-    cv::copyMakeBorder(picture, picture, 10, 10, 10, 10, cv::BORDER_CONSTANT,
-                       0);
+    cv::copyMakeBorder(picture, picture, 10, 10, 10, 10, cv::BORDER_CONSTANT, 0);
     cv::Mat white_specialized = raw_data_processing::white_filter(picture);
     // picture = picture * 3 + (-200.0);  // contrast_increasing
     split(picture, channels);  //[0]->b, [1]->g [2]->r
 
-    cv::Mat R_single_channel = raw_data_processing::emphasize_first(
-        channels[2], channels[0], channels[1]);
-    cv::Mat B_single_channel = raw_data_processing::emphasize_first(
-        channels[0], channels[2], channels[1]);
-    vector<raw_data_processing::rect_info> searched_rectangles =
-        raw_data_processing::draw_contours_and_rectangle(
-            {B_single_channel, R_single_channel, white_specialized});
+    cv::Mat R_single_channel = raw_data_processing::emphasize_first(channels[2], channels[0], channels[1]);
+    cv::Mat B_single_channel = raw_data_processing::emphasize_first(channels[0], channels[2], channels[1]);
+    vector<raw_data_processing::rect_info> searched_rectangles = raw_data_processing::draw_contours_and_rectangle({B_single_channel, R_single_channel, white_specialized});
     int mxI = -1, mx_area = -1e9;
     for (int j = 0; j < int(searched_rectangles.size()); ++j) {
-        int area = searched_rectangles[j].rect.width *
-                   searched_rectangles[j].rect.height;
+        int area = searched_rectangles[j].rect.width * searched_rectangles[j].rect.height;
         if (area > mx_area) {
             mx_area = area;
             mxI = j;
