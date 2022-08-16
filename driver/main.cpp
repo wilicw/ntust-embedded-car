@@ -12,6 +12,7 @@
 #include "model.h"
 #include "motor.h"
 #include "servo.h"
+#include "sign_flag.h"
 #include "ultrasonic.h"
 #include "vision.h"
 
@@ -37,6 +38,7 @@ Vision v;
 Model m("/home/pi/project/carNN/model.tflite");
 
 boost::lockfree::queue<cv::Mat*, boost::lockfree::fixed_sized<true>> cv2model_queue(256);
+boost::lockfree::queue<int, boost::lockfree::fixed_sized<true>> model2driver_queue(256);
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
@@ -58,6 +60,12 @@ void control_task() {
     static uint8_t left_analog = 0, right_analog = 0;
 
     while (!exit_thread) {
+        while (!model2driver_queue.empty()) {
+            sign_cmd_t cmd;
+            model2driver_queue.pop(cmd);
+            cout << cmd << endl;
+        }
+
         servo.turn(1, 125);
         servo.turn(2, 90);
         left_sensor = ir.left();
@@ -138,6 +146,32 @@ void model_task() {
             predict_t p = m.evaluate(*sign);
             delete sign;
             cout << p.possibility << " " << p.index << endl;
+
+            switch (p.index) {
+                case SIGN_STOP_LINE:
+                case SIGN_STOP_PIC:
+                    model2driver_queue.push(CMD_HALT);
+                    break;
+                case SIGN_ONLY_GO:
+                case SIGN_GO_LEFT:
+                case SIGN_GO_RIGHT:
+                case SIGN_NO_STOP:
+                case SIGN_NO_LEFT:
+                case SIGN_NO_RIGHT:
+                    model2driver_queue.push(CMD_GO);
+                    break;
+                case SIGN_ONLY_LEFT:
+                    model2driver_queue.push(CMD_LEFT);
+                    break;
+                case SIGN_ONLY_RIGHT:
+                    model2driver_queue.push(CMD_RIGHT);
+                    break;
+                case SIGN_NOT_GO:
+                    model2driver_queue.push(CMD_TURN);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 #endif
