@@ -32,9 +32,7 @@ Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
 Ultrasonic ur(EchoPin, TrigPin);
 Servo servo(I2C_ADDR);
-
 Vision v;
-
 Model m("/home/pi/project/carNN/model.tflite");
 
 std::queue<sign_info_t> cv2model_queue;
@@ -120,13 +118,11 @@ opencamera:
         if (!ret) continue;
 
         sign_info_t found = std::move(v.processing(frame));
-        cout << found.area << endl;
         if (found.area == 0) continue;
-        cv::imwrite("test.jpg", found.cropped);
-        m.evaluate(found.cropped);
-        //        cv2model_mux.lock();
-        //        cv2model_queue.push(std::move(found));
-        //        cv2model_mux.unlock();
+
+        cv2model_mux.lock();
+        cv2model_queue.push(std::move(found));
+        cv2model_mux.unlock();
 
         delay(10);
     }
@@ -138,16 +134,21 @@ opencamera:
 void model_task() {
 #ifdef ENABLE_TF
     while (!exit_thread) {
+        int t1, t2;
         cv2model_mux.lock();
         while (!cv2model_queue.empty()) {
             sign_info_t sign = std::move(cv2model_queue.front());
             cv2model_queue.pop();
             cv2model_mux.unlock();
 
-            cout << sign.area << endl;
+            cv::imwrite("test.jpg", sign.cropped);
+            predict_t p = m.evaluate(sign.cropped);
+            cout << p.possibility << " " << p.index << endl;
 
             sign.cropped.release();
         }
+        cv2model_mux.unlock();
+        delay(10);
     }
 #endif
 }

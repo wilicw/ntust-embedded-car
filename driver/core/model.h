@@ -10,6 +10,11 @@
 
 using namespace std;
 
+typedef struct {
+    float possibility;
+    int index;
+} predict_t;
+
 class Model {
    private:
     unique_ptr<tflite::FlatBufferModel> model;
@@ -18,7 +23,7 @@ class Model {
 
    public:
     Model(const char *);
-    void evaluate(cv::Mat);
+    predict_t evaluate(cv::Mat);
 };
 
 #endif  // DRIVER_MODEL_H
