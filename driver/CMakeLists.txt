@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 project(driver)
 
 set(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_FLAGS "-O3")
+SET(CMAKE_C_FLAGS "-O3")
 
 find_package(OpenCV REQUIRED)
 find_package(Threads)

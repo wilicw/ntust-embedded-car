@@ -14,10 +14,8 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-#define ENABLE_MOTOR
+// #define ENABLE_MOTOR
 #define ENABLE_CV
-#define CAPTURE_IMG
-#define CAR_RUNNING
 
 #ifdef ENABLE_CV
 #include <opencv2/opencv.hpp>
@@ -104,44 +102,31 @@ void control_task() {
 
 void vision_task() {
 #ifdef ENABLE_CV
-#ifdef CAPTURE_IMG
 
 opencamera:
     static cv::VideoCapture cap(0);
-    //    cout << "opening" << endl;
     if (!cap.isOpened()) goto opencamera;
 
     cap.set(cv::CAP_PROP_FPS, 90);
     static unsigned int pics = 0;
     static int ret;
     static cv::Mat frame;
-    cout << "CV camera opened" << endl;
+    int t1, t2;
     while (!exit_thread) {
+        t1 = micros();
         ret = cap.read(frame);
         if (!ret) continue;
-        // cout << ss.str() << endl;
-        cv::imwrite("./picture/pic" + to_string(pics) + ".jpg", frame);
-        pics++;
+
+        sign_info_t found = v.processing(frame);
+        if (found.area == 0) continue;
+
+        t2 = micros();
+        cv::imwrite("test.jpg", found.cropped);
+        cout << t2 - t1 << endl;
         delay(10);
     }
     cap.release();
-#elif defined(CAR_RUNNING)
-    // cv::Mat a =
-    // cv::imread("D:/Team/rasp_car/program/image_process/notright_pic/frame2.jpg");
-    // Mat a = imread("D:/RayChang/IMG_0102.jpg");
-    clock_t clk = clock();
-    try {
-        cv::resize(a, a, cv::Size(640, 480));
-        sign_info found;
-        v.sign_finding(a, found);
-        std::cout << found.area << " " << found.center_position << std::endl;
-        imshow("FND", found.cropped);
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-    } catch (...) {
-        std::cout << "Nothing found" << std::endl;
-    }
-#endif
+
 #endif
 }
 

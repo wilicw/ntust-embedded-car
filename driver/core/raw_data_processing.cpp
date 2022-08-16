@@ -1,56 +1,8 @@
 #include "raw_data_processing.h"
 
-cv::Mat& raw_data_processing::imgSharpen(const cv::Mat& img, char* arith) {
-    int rows = img.rows;
-    int cols = img.cols * img.channels();
-    int offsetx = img.channels();
-
-    static cv::Mat dst = cv::Mat::ones(img.rows - 2, img.cols - 2, img.type());
-
-    for (int i = 1; i < rows - 1; i++) {
-        const uchar* previous = img.ptr<uchar>(i - 1);
-        const uchar* current = img.ptr<uchar>(i);
-        const uchar* next = img.ptr<uchar>(i + 1);
-        uchar* output = dst.ptr<uchar>(i - 1);
-        for (int j = offsetx; j < cols - offsetx; j++) {
-            output[j - offsetx] = cv::saturate_cast<uchar>(
-                previous[j - offsetx] * arith[0] + previous[j] * arith[1] +
-                previous[j + offsetx] * arith[2] +
-                current[j - offsetx] * arith[3] + current[j] * arith[4] +
-                current[j + offsetx] * arith[5] + next[j - offsetx] * arith[6] +
-                next[j] * arith[7] + next[j - offsetx] * arith[8]);
-        }
-    }
-    return dst;
-}
-cv::Mat raw_data_processing::padding(const cv::Mat& img) {
-    const int H = img.rows, W = img.cols;
-    cv::Mat expanded_image(H + 20, W + 20, CV_8UC3, cv::Scalar(0, 0, 0));
-    for (int i = 0; i < H; ++i) {
-        for (int j = 0; j < W; ++j) {
-            expanded_image.at<cv::Vec3b>(i + 10, j + 10) =
-                img.at<cv::Vec3b>(i, j);
-        }
-    }
-    return expanded_image;
-}
-void raw_data_processing::contrast_increasing(cv::Mat& img, float a, float b) {
-    // const int H = img.rows, W = img.cols;
-    // for (int i = 0; i < H; ++i) {
-    //	for (int j = 0; j < W; ++j) {
-    //		for (int k = 0; k < 3; ++k) {
-    //			int transformed = float(img.at<cv::Vec3b>(i, j)[k]) *
-    //(a)+b; 			if (transformed > 255) { transformed = 255; }
-    // else if (transformed < 0) { transformed = 0; }
-    // img.at<cv::Vec3b>(i, j)[k] = transformed;
-    //		}
-    //	}
-    //}
-    img = img * a + b;
-}
-cv::Mat raw_data_processing::emphasize_first(const cv::Mat& first,
-                                             const cv::Mat& second,
-                                             const cv::Mat& third) {
+cv::Mat raw_data_processing::emphasize_first(const cv::Mat first,
+                                             const cv::Mat second,
+                                             const cv::Mat third) {
     int mn = 255, mx = 0;
     const int H = first.rows, W = first.cols;
     cv::Mat ret = first.clone();
@@ -106,28 +58,9 @@ raw_data_processing::draw_contours_and_rectangle(
     return ret;
 }
 
-cv::Mat raw_data_processing::white_filter(const cv::Mat& img) {
-    cv::Mat ret = img.clone();
-    const int H = ret.rows, W = ret.cols;
-    for (int i = 0; i < H; ++i) {
-        for (int j = 0; j < W; ++j) {
-            bool good = 1;
-            for (int k = 0; k < 3; ++k) {
-                if (img.at<cv::Vec3b>(i, j)[k] > 200) {
-                    continue;
-                } else {
-                    good = 0;
-                    break;
-                }
-            }
-            if (good) {
-                ret.at<cv::Vec3b>(i, j) = {255, 255, 255};
-            } else {
-                ret.at<cv::Vec3b>(i, j) = {0, 0, 0};
-            }
-        }
-    }
-    cv::cvtColor(ret, ret, cv::COLOR_BGR2GRAY);
+cv::Mat raw_data_processing::white_filter(const cv::Mat img) {
+    cv::Mat ret;
+    cv::inRange(img, cv::Scalar(200, 200, 200), cv::Scalar(255, 255, 255), ret);
     int morph_size1 = 8, morph_size2 = 4;
     cv::Mat element1 = cv::getStructuringElement(
         cv::MORPH_RECT, cv::Size(2 * morph_size1 + 1, 2 * morph_size1 + 1),

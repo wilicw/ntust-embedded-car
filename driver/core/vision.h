@@ -6,17 +6,15 @@
 
 using namespace std;
 
-struct sign_info {
-	cv::Mat cropped = cv::Mat();
-	int area = 0;
-	cv::Point center_position = cv::Point(0, 0);
-};
-typedef struct sign_info sign_info;
+typedef struct {
+    cv::Mat cropped;
+    int area = 0;
+    cv::Point center_position = cv::Point(0, 0);
+} sign_info_t;
 
 class Vision {
-
-public:
-	void sign_finding(cv::Mat&, sign_info&);
+   public:
+    sign_info_t processing(cv::Mat);
 };
 
 #endif  // DRIVER_VISION_H
