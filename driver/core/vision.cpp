@@ -14,7 +14,7 @@ sign_info_t Vision::processing(cv::Mat picture) {
 
 	//Prepare to compute the mean and standard deviation of the laplacian:
 	cv::Scalar mean, stddev;
-	cv::meanStdDev(laplacianImage, mean, stddev, cv::Mat());
+	cv::meanStdDev(gray, mean, stddev, cv::Mat());
 
 	//Let’s compute the variance:
 	double variance = stddev.val[0] * stddev.val[0];
