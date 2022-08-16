@@ -8,7 +8,7 @@ sign_info_t Vision::processing(cv::Mat picture) {
     cv::copyMakeBorder(picture, picture, 10, 10, 10, 10, cv::BORDER_CONSTANT,
                        0);
     cv::Mat white_specialized = raw_data_processing::white_filter(picture);
-    picture = picture * 3 + (-200.0);  // contrast_increasing
+    //picture = picture * 3 + (-200.0);  // contrast_increasing
     split(picture, channels);          //[0]->b, [1]->g [2]->r
 
     cv::Mat R_single_channel = raw_data_processing::emphasize_first(
@@ -35,5 +35,5 @@ sign_info_t Vision::processing(cv::Mat picture) {
         ret_sign_info.center_position = searched_rectangles[mxI].contour_center;
         ret_sign_info.area = searched_rectangles[mxI].contour_area;
     }
-    return ret_sign_info;
+	return ret_sign_info;
 }

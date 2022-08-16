@@ -13,7 +13,7 @@ typedef struct {
 } sign_info_t;
 
 class Vision {
-   public:
+public:
     sign_info_t processing(cv::Mat);
 };
 

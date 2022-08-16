@@ -12,6 +12,7 @@ class rect_info {
     cv::Rect rect = cv::Rect();
     Contour con;
 };
+
 cv::Mat emphasize_first(const cv::Mat first, const cv::Mat second,
                         const cv::Mat third);
 cv::Mat white_filter(const cv::Mat);
