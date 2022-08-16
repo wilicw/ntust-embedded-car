@@ -1,20 +1,20 @@
 #include "vision.h"
 #include "raw_data_processing.h"
-#define blurThreshold 15.0
+#define blurThreshold 15
 
 sign_info_t Vision::processing(cv::Mat picture) {
     sign_info_t ret_sign_info;
 
     // read the image and convert it to grayscale:
-    cv::Mat gray;
+    cv::Mat gray, laplacian;
     cv::cvtColor(picture, gray, cv::COLOR_RGB2GRAY);
 
     // Cool, let's compute the laplacian of the gray image:
-    cv::Laplacian(gray, gray, CV_64F);
+    cv::Laplacian(gray, laplacian, CV_64F);
 
     // Prepare to compute the mean and standard deviation of the laplacian:
     cv::Scalar mean, stddev;
-    cv::meanStdDev(gray, mean, stddev, cv::Mat());
+    cv::meanStdDev(laplacian, mean, stddev, cv::Mat());
 
     // Let’s compute the variance:
     double variance = stddev.val[0] * stddev.val[0];
