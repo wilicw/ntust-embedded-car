@@ -16,7 +16,7 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-// #define ENABLE_MOTOR
+#define ENABLE_MOTOR
 #define ENABLE_CV
 #define ENABLE_TF
 
@@ -72,17 +72,15 @@ void control_task() {
         right_sensor = ir.right();
         distance = ur.distance();
 
-        barrier = current_speed * 0.09 + 10;
+        barrier = current_speed * 0.09 + 12;
 #ifdef ENABLE_MOTOR
-        if (distance < barrier) {
+        if (distance <= barrier) {
             cout << distance << endl;
-            if (!(left_sensor ^ right_sensor))
-                motor.stop();
-            else if (left_sensor == WALL)
+            if (left_sensor == WALL)
                 motor.turn(right_speed, -right_speed + 20);
             else
                 motor.turn(-right_speed + 20, right_speed);
-            delay(80);
+            delay(70);
             current_speed = init_speed;
         } else if (!(left_sensor ^ right_sensor)) {
             cout << "Forward" << endl;
@@ -127,7 +125,7 @@ opencamera:
         ret = cap.read(frame);
         if (!ret) continue;
 
-        cv::imwrite("frame.jpg", frame);
+        //cv::imwrite("frame.jpg", frame);
         sign_info_t found = std::move(v.processing(frame));
         if (found.area == 0) continue;
         auto cropped = new cv::Mat(found.cropped);
@@ -145,7 +143,7 @@ void model_task() {
             cv::Mat* sign;
             cv2model_queue.pop(sign);
 
-            cv::imwrite("test.jpg", *sign);
+            //cv::imwrite("test.jpg", *sign);
             predict_t p = m.evaluate(*sign);
             delete sign;
             cout << p.possibility << " " << p.index << endl;
