@@ -1,9 +1,9 @@
-#include <signal.h>
-#include <stdint.h>
 #include <wiringPi.h>
 
 #include <atomic>
 #include <boost/lockfree/queue.hpp>
+#include <csignal>
+#include <cstdint>
 #include <iostream>
 #include <thread>
 
@@ -24,7 +24,7 @@
 #include <opencv2/opencv.hpp>
 #endif
 
-#define NOWALL false
+#define WALL false
 
 using namespace std;
 
@@ -76,7 +76,9 @@ void control_task() {
 #ifdef ENABLE_MOTOR
         if (distance < barrier) {
             cout << distance << endl;
-            if (left_sensor == NOWALL)
+            if (!(left_sensor ^ right_sensor))
+                motor.stop();
+            else if (left_sensor == WALL)
                 motor.turn(right_speed, -right_speed + 20);
             else
                 motor.turn(-right_speed + 20, right_speed);
@@ -87,14 +89,14 @@ void control_task() {
             left_analog = right_analog = 0;
             if (current_speed <= forward_speed) current_speed += 5;
             motor.turn(current_speed, current_speed);
-        } else if (left_sensor == NOWALL) {
+        } else if (left_sensor == WALL) {
             if (left_analog < 255) left_analog += 5;
             right_analog = 0;
             cout << "Right" << endl;
             motor.turn(
                 turning_speed * turning_scale,
                 turning_speed * (turning_scale - 0.2 - left_analog / 255.0));
-        } else if (right_sensor == NOWALL) {
+        } else if (right_sensor == WALL) {
             if (right_analog < 255) right_analog += 5;
             left_analog = 0;
             cout << "Left" << endl;
@@ -125,9 +127,10 @@ opencamera:
         ret = cap.read(frame);
         if (!ret) continue;
 
+        cv::imwrite("frame.jpg", frame);
         sign_info_t found = std::move(v.processing(frame));
         if (found.area == 0) continue;
-        cv::Mat* cropped = new cv::Mat(found.cropped);
+        auto cropped = new cv::Mat(found.cropped);
         cv2model_queue.push(cropped);
     }
     cap.release();
