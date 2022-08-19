@@ -34,7 +34,7 @@ sign_info_t Vision::processing(cv::Mat picture) {
     cv::Mat R_single_channel = raw_data_processing::emphasize_first(channels[2], channels[0], channels[1]);
     cv::Mat B_single_channel = raw_data_processing::emphasize_first(channels[0], channels[2], channels[1]);
     vector<raw_data_processing::rect_info> searched_rectangles = raw_data_processing::draw_contours_and_rectangle({B_single_channel, R_single_channel, white_specialized});
-    int mxI = -1, mx_area = -1e9;
+    int mxI = -1, mx_area = 0;
     for (int j = 0; j < int(searched_rectangles.size()); ++j) {
         int area = searched_rectangles[j].rect.width * searched_rectangles[j].rect.height;
         if (area > mx_area) {
