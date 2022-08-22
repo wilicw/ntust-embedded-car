@@ -31,3 +31,11 @@ sign_item_t Vision::process(cv::Mat image) {
 
     return result;
 }
+bool Vision::laplacian_check(cv::Mat image) {
+    constexpr int blurry_threshold = 60;
+    return false;
+}
+
+void Vision::contrast_normalization(cv::Mat image) {
+
+}
