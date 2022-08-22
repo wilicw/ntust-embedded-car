@@ -17,7 +17,7 @@ predict_t Model::evaluate(cv::Mat input) {
 
     float *max_y = max_element(y, y + 11 * sizeof(float));
     predict.possibility = *max_y;
-    predict.index = distance(y, max_y);
+    predict.index = (sign_classification_t)distance(y, max_y);
 
     return predict;
 }

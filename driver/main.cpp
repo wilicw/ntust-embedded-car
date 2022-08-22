@@ -1,18 +1,17 @@
 #include <wiringPi.h>
 
 #include <atomic>
-#include <boost/lockfree/queue.hpp>
 #include <csignal>
 #include <cstdint>
 #include <iostream>
 #include <thread>
 
 #include "bsp.h"
+#include "communication.h"
 #include "ir.h"
 #include "model.h"
 #include "motor.h"
 #include "servo.h"
-#include "sign_flag.h"
 #include "ultrasonic.h"
 #include "vision.h"
 
@@ -35,10 +34,8 @@ IR ir(IR_LEFT, IR_RIGHT);
 Ultrasonic ur(EchoPin, TrigPin);
 Servo servo(I2C_ADDR);
 Vision v;
+Communication commu;
 Model m("/home/pi/project/carNN/model.tflite");
-
-boost::lockfree::queue<cv::Mat*, boost::lockfree::fixed_sized<true>> cv2model_queue(256);
-boost::lockfree::queue<int, boost::lockfree::fixed_sized<true>> model2driver_queue(256);
 
 void signal_callback_handler(int signum) {
     exit_thread = true;
@@ -60,9 +57,9 @@ void control_task() {
     static uint8_t left_analog = 0, right_analog = 0;
 
     while (!exit_thread) {
-        while (!model2driver_queue.empty()) {
-            sign_cmd_t cmd;
-            model2driver_queue.pop(cmd);
+        while (!commu.cmd_queue->empty()) {
+            cmd_item_t cmd;
+            commu.cmd_queue->pop(cmd);
             //            cout << cmd << endl;
         }
 
@@ -126,14 +123,6 @@ opencamera:
         if (!ret) continue;
 
         // cv::imwrite("frame.jpg", frame);
-        sign_info_t found = std::move(v.processing(frame));
-        if (found.area <= 0) continue;
-
-        found.distance = v.distance(found.center_position);
-        if (found.distance >= 23) continue;
-
-        auto cropped = new cv::Mat(found.cropped);
-        cv2model_queue.push(cropped);
     }
     cap.release();
 
@@ -143,19 +132,23 @@ opencamera:
 void model_task() {
 #ifdef ENABLE_TF
     while (!exit_thread) {
-        while (!cv2model_queue.empty()) {
-            cv::Mat* sign;
-            cv2model_queue.pop(sign);
+        while (!commu.sign_queue->empty()) {
+            sign_item_t sign;
+            commu.sign_queue->pop(sign);
 
             // cv::imwrite("test.jpg", *sign);
-            predict_t p = m.evaluate(*sign);
-            delete sign;
+            predict_t p = m.evaluate(*sign.cropped);
+            sign.cropped->release();
             cout << p.possibility << " " << p.index << endl;
+            float distance = v.distance(*sign.center);
+            cmd_item_t cmd;
+            cmd.distance = distance;
 
             switch (p.index) {
                 case SIGN_STOP_LINE:
                 case SIGN_STOP_PIC:
-                    model2driver_queue.push(CMD_HALT);
+                    cmd.command = CMD_HALT;
+                    commu.cmd_queue->push(cmd);
                     break;
                 case SIGN_ONLY_GO:
                 case SIGN_GO_LEFT:
@@ -163,16 +156,20 @@ void model_task() {
                 case SIGN_NO_STOP:
                 case SIGN_NO_LEFT:
                 case SIGN_NO_RIGHT:
-                    model2driver_queue.push(CMD_GO);
+                    cmd.command = CMD_GO;
+                    commu.cmd_queue->push(cmd);
                     break;
                 case SIGN_ONLY_LEFT:
-                    model2driver_queue.push(CMD_LEFT);
+                    cmd.command = CMD_LEFT;
+                    commu.cmd_queue->push(cmd);
                     break;
                 case SIGN_ONLY_RIGHT:
-                    model2driver_queue.push(CMD_RIGHT);
+                    cmd.command = CMD_RIGHT;
+                    commu.cmd_queue->push(cmd);
                     break;
                 case SIGN_NOT_GO:
-                    model2driver_queue.push(CMD_TURN);
+                    cmd.command = CMD_TURN;
+                    commu.cmd_queue->push(cmd);
                     break;
                 default:
                     break;
