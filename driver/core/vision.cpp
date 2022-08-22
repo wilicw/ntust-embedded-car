@@ -22,3 +22,12 @@ float Vision::distance(cv::Point center) {
     double result = camera_height * sqrt(1 / thetasq + etasq + etasq / thetasq);
     return result;
 }
+
+sign_item_t Vision::process(cv::Mat image) {
+    sign_item_t result = {
+        .center = nullptr,
+        .cropped = nullptr,
+    };
+
+    return result;
+}

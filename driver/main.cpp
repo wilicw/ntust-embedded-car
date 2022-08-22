@@ -123,6 +123,10 @@ opencamera:
         if (!ret) continue;
 
         // cv::imwrite("frame.jpg", frame);
+        sign_item_t sign_item = v.process(frame);
+        if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
+
+        commu.sign_queue->push(sign_item);
     }
     cap.release();
 
