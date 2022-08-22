@@ -7,16 +7,8 @@
 
 using namespace std;
 
-typedef struct {
-    cv::Mat cropped;
-    int area;
-    cv::Point center_position;
-    float distance;
-} sign_info_t;
-
 class Vision {
 public:
-    sign_info_t processing(cv::Mat);
     float distance(cv::Point);
 };
 
