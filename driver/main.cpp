@@ -15,7 +15,7 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-// #define ENABLE_MOTOR
+#define ENABLE_MOTOR
 #define ENABLE_CV
 #define ENABLE_TF
 
@@ -55,30 +55,60 @@ void control_task() {
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
+    static cmd_t current_cmd = CMD_NONE;
 
     while (!exit_thread) {
         while (!commu.cmd_queue->empty()) {
             cmd_item_t cmd;
             commu.cmd_queue->pop(cmd);
-            //            cout << cmd << endl;
+            distance = cmd.distance;
+            current_cmd = cmd.command;
         }
 
         servo.turn(1, 125);
         servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
-        distance = ur.distance();
+        distance = min(ur.distance(), distance - 14);
 
         barrier = current_speed * 0.089 + 9;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
             cout << distance << endl;
-            if (left_sensor == WALL)
-                motor.turn(right_speed, -right_speed + 20);
-            else
-                motor.turn(-right_speed + 20, right_speed);
-            delay(65);
-            current_speed = init_speed;
+            if (current_cmd != CMD_NONE) {
+                if (current_cmd == CMD_LEFT) {
+                    motor.turn(right_speed, -right_speed + 20);
+                    delay(65);
+                    current_speed = init_speed;
+                } else if (current_cmd == CMD_RIGHT) {
+                    motor.turn(-right_speed + 20, right_speed);
+                    delay(65);
+                    current_speed = init_speed;
+                } else if (current_cmd == CMD_HALT) {
+                    motor.stop();
+                    delay(1000);
+                    current_speed = init_speed;
+                } else if (current_cmd == CMD_TURN) {
+                    motor.stop();
+                    delay(1000);
+                    current_speed = init_speed;
+                } else if (current_cmd == CMD_GO) {
+                    if (left_sensor == WALL)
+                        motor.turn(right_speed, -right_speed + 20);
+                    else
+                        motor.turn(-right_speed + 20, right_speed);
+                    delay(65);
+                    current_speed = init_speed;
+                }
+                current_cmd = CMD_NONE;
+            } else {
+                if (left_sensor == WALL)
+                    motor.turn(right_speed, -right_speed + 20);
+                else
+                    motor.turn(-right_speed + 20, right_speed);
+                delay(65);
+                current_speed = init_speed;
+            }
         } else if (!(left_sensor ^ right_sensor)) {
             cout << "Forward" << endl;
             left_analog = right_analog = 0;

@@ -10,6 +10,7 @@ typedef enum {
     CMD_LEFT,
     CMD_RIGHT,
     CMD_TURN,
+    CMD_NONE,
 } cmd_t;
 
 typedef struct {
