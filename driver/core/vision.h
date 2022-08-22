@@ -13,7 +13,9 @@ class Vision {
    private:
     void contrast_normalization(cv::Mat);
     bool laplacian_check(cv::Mat);
-
+    vector<cv::Mat> cvt_HSV(cv::Mat);
+    vector<vector<cv::Point>> find_contours(cv::Mat);
+    pair<cv::Rect, cv::Point> find_rectangle(cv::Mat, vector<vector<cv::Point>>);
    public:
     sign_item_t process(cv::Mat);
     float distance(cv::Point);
