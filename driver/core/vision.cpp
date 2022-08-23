@@ -1,25 +1,5 @@
 #include "vision.h"
 
-#define blurThreshold 15.0
-
-class CON_PARM_t {
-   public:
-    CON_PARM_t() {};
-    CON_PARM_t(const int thr, const int min, const int max, const int wid, const int hei):
-        THRES(thr), CON_MIN(min), CON_MAX(max), RECT_WIDTH(wid), RECT_HEIGHT(hei){};
-    int THRES = 0;
-    int CON_MIN = 0;
-    int CON_MAX = 0;
-    int RECT_WIDTH = 0;
-    int RECT_HEIGHT = 0;
-};
-
-static std::unordered_map<char, CON_PARM_t> CON_PARM = {
-    //THRES, MIN,  MAX, WID, HEI
-    std::make_pair('R',CON_PARM_t(100, 650, 2000, 150, 150)),
-    std::make_pair('B',CON_PARM_t(100, 650, 2000, 150, 100)),
-    std::make_pair('W',CON_PARM_t(100, 500, 1100, 100, 100)) };
-
 float Vision::distance(cv::Point center) {
     constexpr int w = 640, h = 480;
     constexpr double camera_height = 11.5;
@@ -44,88 +24,220 @@ float Vision::distance(cv::Point center) {
 }
 
 sign_item_t Vision::process(cv::Mat image) {
-    const static sign_item_t empty_result = {
-        .center = nullptr,
-        .cropped = nullptr,
-    };
-
-    sign_item_t result = {
-        .center = nullptr,
-        .cropped = nullptr,
-    };
-
-    if (!this->laplacian_check(image)) return empty_result;
+#ifdef DEBUG
+    cv::Mat cloned = image.clone();
+#endif
+    const static sign_item_t empty_result = {nullptr, nullptr};
 
     cv::copyMakeBorder(image, image, 10, 10, 10, 10, cv::BORDER_CONSTANT);
 
-    vector<cv::Mat> HSV_channels = cvt_HSV(image); // [0]:H, [1]:S, [2]:V
+    vector<cv::Mat> HSV_channels = this->cvt_HSV(image); // [0]:H, [1]:S, [2]:V
 
-    cv::Mat thres;
-    cv::threshold(HSV_channels[1]*HSV_channels[2], thres, 0.23, 255, cv::THRESH_BINARY);
+    ///--------------RED channel--------------
 
-    vector<vector<cv::Point>> contours = find_contours(thres);
+    pair<cv::Rect, cv::Point> red_pair = this->RED_CH(image, HSV_channels);
 
-    return result;
+    ///--------------Blue channel--------------
+
+    pair<cv::Rect, cv::Point> blue_pair = this->BLUE_CH(image, HSV_channels);
+
+    ///--------------White channel--------------
+
+
+
+    ///--------------Judge R B W three channel's size--------------
+    if (red_pair.first.area() == 0 && blue_pair.first.area() == 0) {
+        return empty_result;
+    }
+
+    vector<pair<cv::Rect, cv::Point>> pairs({red_pair, blue_pair});
+
+    int pair_index = this->find_max_rect(pairs);
+    if (pair_index == -1) return empty_result;
+
+    cv::Mat cropped = image(pairs[pair_index].first);
+    cv::resize(cropped, cropped, cv::Size(50, 50));
+
+    if (!this->laplacian_check(cropped, 500)) return empty_result;
+
+    sign_item_t ret;
+
+    ret.cropped = new cv::Mat(cropped);
+    ret.center = new cv::Point(pairs[pair_index].second);
+    return ret;
+}
+
+bool Vision::laplacian_check(cv::Mat image, const int &threshold) {
+    constexpr int blurry_threshold = 17;
+    cv::Mat gray, laplacian;
+    cv::cvtColor(image, gray, cv::COLOR_RGB2GRAY);
+    cv::Laplacian(gray, laplacian, CV_64F);
+
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(laplacian, mean, stddev, cv::Mat());
+
+    double variance = stddev.val[0] * stddev.val[0];
+    cout << variance << endl;
+    return variance > threshold;
 }
 
 vector<cv::Mat> Vision::cvt_HSV(cv::Mat image) {
+    constexpr int NORM_MAX = 307200;
+    constexpr int NORM_MIN = 0;
     cv::Mat img_hsv;
+    //    img_hsv.convertTo(img_hsv, CV_32F);
     cv::cvtColor(image, img_hsv, cv::COLOR_BGR2HSV);
 
     vector<cv::Mat> channels;
     split(img_hsv, channels); // H S V
 
-    cv::normalize(channels[0],channels[0], 0, 1, cv::NORM_MINMAX);
-    cv::normalize(channels[1],channels[1], 0, 1, cv::NORM_MINMAX);
-    cv::normalize(channels[2],channels[2], 0, 1, cv::NORM_MINMAX);
+    channels[1].convertTo(channels[1], CV_32F);
+    channels[2].convertTo(channels[2], CV_32F);
+
+    cv::normalize(channels[1], channels[1], 0, 1, cv::NORM_MINMAX);
+    cv::normalize(channels[2], channels[2], 0, 1, cv::NORM_MINMAX);
 
     return channels;
 }
 
 
-std::vector<std::vector<cv::Point>> Vision::find_contours(cv::Mat image) {
+
+pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_channels) {
+
+    cv::Mat H_channels = this->H_filter(HSV_channels[0].clone(), 10, 165);
+    H_channels = 255 - H_channels;
+
+    cv::Mat Sthres;
+
+    cv::threshold(HSV_channels[1], Sthres, 0.3, 255, cv::THRESH_TOZERO);
+
+    cv::Mat SxV = Sthres.mul(HSV_channels[2]);
+
+    cv::Mat SxVthres;
+
+    cv::threshold(SxV, SxVthres, 0.44, 255, cv::THRESH_BINARY);
+
+    H_channels.convertTo(H_channels, CV_32F);
+
+    cv::Mat HxSxV = SxVthres.mul(H_channels);
+
+    HxSxV.convertTo(HxSxV, CV_8UC1);
+
+    vector<vector<cv::Point>> contours = this->find_contours(HxSxV);
+    vector<vector<cv::Point>> hulls = this->contours_to_hulls(contours);
+    pair<cv::Rect, cv::Point> ret = this->find_rectangle(hulls);
+
+    return ret;
+}
+
+pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_channels) {
+    cv::Mat H_channel = this->H_filter(HSV_channels[0].clone(), 95, 125);
+
+    cv::Mat Sthres;
+
+    cv::threshold(HSV_channels[1], Sthres, 0.3, 255, cv::THRESH_TOZERO);
+
+    cv::Mat SxV = Sthres.mul(HSV_channels[2]);
+
+    cv::Mat SxVthres;
+    cv::threshold(SxV, SxVthres, 0.01, 255, cv::THRESH_BINARY);
+
+    H_channel.convertTo(H_channel, CV_32F);
+
+    cv::Mat HxSxV = SxVthres.mul(H_channel);
+
+    HxSxV.convertTo(HxSxV, CV_8UC1);
+
+    vector<vector<cv::Point>> contours = this->find_contours(HxSxV);
+    vector<vector<cv::Point>> hulls = this->contours_to_hulls(contours);
+    pair<cv::Rect, cv::Point> ret = this->find_rectangle(hulls);
+
+    return ret;
+}
+
+
+pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV) {
+    return pair<cv::Rect, cv::Point>();
+}
+
+
+cv::Mat Vision::H_filter(cv::Mat H_channel, const int& min, const int& max) {
+    cv::inRange(H_channel, min, max, H_channel);
+    return H_channel;
+}
+
+cv::Mat Vision::dilation(cv::Mat image, const int &morph_size) {
+    cv::Mat element1 = cv::getStructuringElement(
+        cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1),
+        cv::Point(morph_size, morph_size));
+    cv::dilate(image, image, element1, cv::Point(-1, -1), 1);
+    return image;
+}
+
+cv::Mat Vision::erosion(cv::Mat image, const int &morph_size) {
+    cv::Mat element2 = cv::getStructuringElement(
+        cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1),
+        cv::Point(morph_size, morph_size));
+    cv::erode(image, image, element2, cv::Point(-1, -1), 1);
+    return image;
+}
+
+vector<vector<cv::Point>> Vision::find_contours(cv::Mat image) {
     cv::Mat copy = image.clone();
-    cv::threshold(image, copy, 100, 255, 0);
-    //input, output, val, max, 0->binary, 1-> inverted binary
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
+    vector<vector<cv::Point>> contours;
+    vector<cv::Vec4i> hierarchy;
     cv::findContours(copy, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
     return contours;
 }
 
-pair<cv::Rect, cv::Point> Vision::find_rectangle(cv::Mat image, vector<vector<cv::Point>> contours) {
+vector<vector<cv::Point>> Vision::contours_to_hulls(vector<vector<cv::Point>> contours){
+    vector<vector<cv::Point>> hulls;
+    for(auto& contour:contours){
+        approxPolyDP(contour, contour, 8, true);
+        vector<cv::Point> hull;
+        cv::convexHull(contour, hull);
+        hulls.push_back(hull);
+    }
+    return hulls;
+}
+
+pair<cv::Rect, cv::Point> Vision::find_rectangle(vector<vector<cv::Point>> hulls) {
     cv::Rect rect;
     cv::Point contour_center;
-    for (int i = 0; i < contours.size(); ++i) {
-        if (contours[i].size() > 300 && contours[i].size() < 3000) {
-            approxPolyDP(cv::Mat(contours[i]), contours[i], 3, true);
 
-            //inf.con = contours[i];
-            double area = cv::contourArea(contours[i], false);
-            double len = contours[i].size();
-            double min_area = len * len * 4 / 100, max_area = len * len / 18;
-            cv::Rect rect = cv::boundingRect(contours[i]);
-            if (rect.height < 50 && rect.width < 50) { continue; }
-            if (area > max_area || area < min_area) { std::cout << "D" << std::endl; continue; }
-            cv::Moments M = cv::moments(contours[i]);
-            cv::Point center(M.m10 / M.m00, M.m01 / M.m00);
-            contour_center = center;
+    for (auto &hull: hulls) {
+
+        //find rectangle
+        cv::Rect this_rect = cv::boundingRect(hull);
+        if (this_rect.height < 100 && this_rect.width < 100) {
+            continue;
         }
+
+        if (this_rect.area() < rect.area()) {
+            continue;
+        }
+
+        cv::Moments M = cv::moments(hull);
+        contour_center = cv::Point(M.m10 / M.m00, M.m01 / M.m00);
+        rect = cv::Rect(this_rect);
     }
+    //    }
     return make_pair(rect, contour_center);
 }
 
 
-bool Vision::laplacian_check(cv::Mat image) {
-    constexpr int blurry_threshold = 17;
-    cv::Mat gray;
-    cv::cvtColor(image, gray, cv::COLOR_RGB2GRAY);
-    cv::Laplacian(gray, gray, CV_64F);
-    cv::Scalar mean, stddev;
-    cv::meanStdDev(gray, mean, stddev, cv::Mat());
-    double variance = stddev.val[0] * stddev.val[0];
-    return variance > blurry_threshold;
+int Vision::find_max_rect(vector<pair<cv::Rect, cv::Point>> pairs) {
+    int max_index = -1, max_area = 0;
+    for (int i = 0; i < pairs.size(); i++) {
+        if (pairs[i].first.area() > max_area) {
+            max_area = pairs[i].first.area();
+            max_index = i;
+        }
+    }
+    return max_index;
 }
 
-void Vision::contrast_normalization(cv::Mat image) {
+void Vision::contrast_normalization(const cv::Mat image) {
 }
+
+
