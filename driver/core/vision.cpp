@@ -114,7 +114,7 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
 
     cv::Mat SxVthres;
 
-    cv::threshold(SxV, SxVthres, 0.44, 255, cv::THRESH_BINARY);
+    cv::threshold(SxV, SxVthres, 0.3, 255, cv::THRESH_BINARY);
 
     H_channels.convertTo(H_channels, CV_32F);
 
