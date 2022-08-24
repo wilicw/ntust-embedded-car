@@ -77,7 +77,6 @@ bool Vision::laplacian_check(cv::Mat image, const int &threshold) {
     cv::meanStdDev(laplacian, mean, stddev, cv::Mat());
 
     double variance = stddev.val[0] * stddev.val[0];
-    cout << variance << endl;
     return variance > threshold;
 }
 
@@ -135,7 +134,7 @@ pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_cha
 
     cv::Mat Sthres;
 
-    cv::threshold(HSV_channels[1], Sthres, 0.3, 255, cv::THRESH_TOZERO);
+    cv::threshold(HSV_channels[1], Sthres, 0.2, 255, cv::THRESH_TOZERO);
 
     cv::Mat SxV = Sthres.mul(HSV_channels[2]);
 
