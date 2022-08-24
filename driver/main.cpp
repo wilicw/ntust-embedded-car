@@ -73,7 +73,7 @@ void control_task() {
         right_sensor = ir.right();
         distance = min(ur.distance(), distance - 14);
 
-        barrier = current_speed * 0.089 + 9;
+        barrier = current_speed * 0.09 + 10;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
             cout << distance << endl;
@@ -108,7 +108,7 @@ void control_task() {
                     motor.turn(right_speed, -right_speed + 20);
                 else
                     motor.turn(-right_speed + 20, right_speed);
-                delay(65);
+                delay(turning_delay);
                 current_speed = init_speed;
             }
         } else if (!(left_sensor ^ right_sensor)) {
