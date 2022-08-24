@@ -47,6 +47,7 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
+    const static int turning_delay = 60;
     const static int right_speed = 180;
     const static int turning_speed = 120;
     const static int forward_speed = 80;
@@ -58,6 +59,7 @@ void control_task() {
     static cmd_t current_cmd = CMD_NONE;
 
     while (!exit_thread) {
+        distance = 1e9;
         while (!commu.cmd_queue->empty()) {
             cmd_item_t cmd;
             commu.cmd_queue->pop(cmd);
@@ -78,11 +80,11 @@ void control_task() {
             if (current_cmd != CMD_NONE) {
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(right_speed, -right_speed + 20);
-                    delay(65);
+                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_RIGHT) {
                     motor.turn(-right_speed + 20, right_speed);
-                    delay(65);
+                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_HALT) {
                     motor.stop();
@@ -97,7 +99,7 @@ void control_task() {
                         motor.turn(right_speed, -right_speed + 20);
                     else
                         motor.turn(-right_speed + 20, right_speed);
-                    delay(65);
+                    delay(turning_delay);
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
