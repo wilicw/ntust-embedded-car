@@ -6,3 +6,6 @@ bin/
 *.swp
 .idea/
 .ipynb_checkpoints/
+image_process/
+pic/
+.vs/
