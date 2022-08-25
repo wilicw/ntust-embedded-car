@@ -10,6 +10,8 @@ class Motor {
    private:
     int addr;
     int fd;
+    int _left = 0;
+    int _right = 0;
     uint8_t data[5] = {0x1, 0, 0, 0, 0};
 
    public:

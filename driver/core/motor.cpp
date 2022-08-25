@@ -5,6 +5,9 @@ Motor::Motor(int addr) : addr(addr) {}
 void Motor::init() { this->fd = wiringPiI2CSetup(this->addr); }
 
 void Motor::turn(int left, int right) {
+    if (_left == left && _right == right) return;
+    _left = left;
+    _right = right;
     data[1] = left < 0 ? 0 : 1;
     data[3] = right < 0 ? 0 : 1;
 
