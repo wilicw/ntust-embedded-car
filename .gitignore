@@ -6,6 +6,8 @@ bin/
 *.swp
 .idea/
 .ipynb_checkpoints/
-image_process/
+*dataset*/
+*.jpg
 pic/
 .vs/
+*cmake*build*/
