@@ -28,6 +28,7 @@
 using namespace std;
 
 volatile static atomic<bool> exit_thread(false);
+volatile static atomic<bool> halt_process(false);
 
 Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
@@ -47,12 +48,11 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_delay = 0;
     const static int right_speed = 180;
     const static int turning_speed = 120;
-    const static int forward_speed = 120;
+    const static int forward_speed = 80;
     const static float turning_scale = 0.9;
-    const static int init_speed = 100;
+    const static int init_speed = 50;
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
@@ -63,57 +63,51 @@ void control_task() {
         while (!commu.cmd_queue->empty()) {
             cmd_item_t cmd;
             commu.cmd_queue->pop(cmd);
-            distance = cmd.distance;
+            distance = cmd.distance - 10;
             cout << "distance:" << distance << endl;
-            if (distance <= 30) {
-                motor.turn(-255, -255);
-                motor.stop();
-                delay(1000);
-            }
-            // current_cmd = cmd.command;
+            current_cmd = cmd.command;
         }
 
         servo.turn(1, 125);
         servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
-        distance = min(ur.distance(), distance - 14);
+        distance = min(ur.distance(), distance);
 
         barrier = current_speed * 0.085 + 10;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
             if (current_cmd != CMD_NONE) {
+                halt_process = true;
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(right_speed, -right_speed + 20);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_RIGHT) {
                     motor.turn(-right_speed + 20, right_speed);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_HALT) {
+                    // TODO: Add non-blocking
                     motor.stop();
                     delay(1000);
+                    motor.turn(init_speed, init_speed);
+                    delay(200);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_TURN) {
-                    motor.stop();
-                    delay(1000);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_GO) {
                     if (left_sensor == WALL)
                         motor.turn(right_speed, -right_speed + 20);
                     else
                         motor.turn(-right_speed + 20, right_speed);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
+                halt_process = false;
             } else {
                 if (left_sensor == WALL)
                     motor.turn(right_speed, -right_speed + 20);
                 else
                     motor.turn(-right_speed + 20, right_speed);
-                delay(turning_delay);
                 current_speed = init_speed;
             }
         } else if (!(left_sensor ^ right_sensor)) {
@@ -154,6 +148,7 @@ opencamera:
     static uint32_t index = 0, indexx = 0;
     static cv::Mat frame;
     while (!exit_thread) {
+        if (halt_process) continue;
         ret = cap.read(frame);
         if (!ret) continue;
 
@@ -175,6 +170,7 @@ void model_task() {
 #ifdef ENABLE_TF
     while (!exit_thread) {
         while (!commu.sign_queue->empty()) {
+            if (halt_process) continue;
             sign_item_t sign;
             commu.sign_queue->pop(sign);
 
