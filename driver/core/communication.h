@@ -1,8 +1,11 @@
 #ifndef DRIVER_COMMUNICATION_H
 #define DRIVER_COMMUNICATION_H
 
+#include <atomic>
 #include <boost/lockfree/queue.hpp>
 #include <opencv2/opencv.hpp>
+
+using namespace std;
 
 typedef enum {
     CMD_HALT,
@@ -26,8 +29,13 @@ typedef struct {
 class Communication {
    public:
     Communication();
+    void halt_process();
+    void continue_process();
+    void exit_process();
     boost::lockfree::queue<sign_item_t, boost::lockfree::fixed_sized<true>>* sign_queue;
     boost::lockfree::queue<cmd_item_t, boost::lockfree::fixed_sized<true>>* cmd_queue;
+    volatile static atomic<bool> is_exit_thread;
+    volatile static atomic<bool> is_halt_process;
 };
 
 #endif  // DRIVER_COMMUNICATION_H

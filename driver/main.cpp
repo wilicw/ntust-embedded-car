@@ -1,6 +1,5 @@
 #include <wiringPi.h>
 
-#include <atomic>
 #include <csignal>
 #include <cstdint>
 #include <iostream>
@@ -27,9 +26,6 @@
 
 using namespace std;
 
-volatile static atomic<bool> exit_thread(false);
-volatile static atomic<bool> halt_process(false);
-
 Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
 Ultrasonic ur(EchoPin, TrigPin);
@@ -39,7 +35,7 @@ Communication commu;
 Model m("/home/pi/project/carNN/model.tflite");
 
 void signal_callback_handler(int signum) {
-    exit_thread = true;
+    commu.exit_process();
     motor.stop();
     exit(signum);
 }
@@ -56,16 +52,16 @@ void control_task() {
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
+    static cmd_item_t queue_cmd;
     static cmd_t current_cmd = CMD_NONE;
 
-    while (!exit_thread) {
+    while (!Communication::is_exit_thread) {
         distance = 1e9;
         while (!commu.cmd_queue->empty()) {
-            cmd_item_t cmd;
-            commu.cmd_queue->pop(cmd);
-            distance = cmd.distance - 10;
+            commu.cmd_queue->pop(queue_cmd);
+            distance = queue_cmd.distance - 10;
             cout << "distance:" << distance << endl;
-            current_cmd = cmd.command;
+            current_cmd = queue_cmd.command;
         }
 
         servo.turn(1, 125);
@@ -78,7 +74,7 @@ void control_task() {
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
             if (current_cmd != CMD_NONE) {
-                halt_process = true;
+                commu.halt_process();
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(right_speed, -right_speed + 20);
                     current_speed = init_speed;
@@ -86,11 +82,12 @@ void control_task() {
                     motor.turn(-right_speed + 20, right_speed);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_HALT) {
-                    // TODO: Add non-blocking
                     motor.stop();
-                    delay(1000);
+                    delay(3000);
                     motor.turn(init_speed, init_speed);
-                    delay(200);
+                    delay(300);
+                    while (commu.cmd_queue->pop(queue_cmd))
+                        ;
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_TURN) {
                     current_speed = init_speed;
@@ -102,7 +99,7 @@ void control_task() {
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
-                halt_process = false;
+                commu.continue_process();
             } else {
                 if (left_sensor == WALL)
                     motor.turn(right_speed, -right_speed + 20);
@@ -147,8 +144,8 @@ opencamera:
     static int ret;
     static uint32_t index = 0, indexx = 0;
     static cv::Mat frame;
-    while (!exit_thread) {
-        if (halt_process) continue;
+    while (!Communication::is_exit_thread) {
+        if (Communication::is_halt_process) continue;
         ret = cap.read(frame);
         if (!ret) continue;
 
@@ -168,9 +165,9 @@ opencamera:
 
 void model_task() {
 #ifdef ENABLE_TF
-    while (!exit_thread) {
+    while (!Communication::is_exit_thread) {
         while (!commu.sign_queue->empty()) {
-            if (halt_process) continue;
+            if (Communication::is_halt_process) continue;
             sign_item_t sign;
             commu.sign_queue->pop(sign);
 
@@ -188,10 +185,8 @@ void model_task() {
                     cmd.command = CMD_HALT;
                     commu.cmd_queue->push(cmd);
                     break;
-                case SIGN_ONLY_GO:
                 case SIGN_GO_LEFT:
                 case SIGN_GO_RIGHT:
-                case SIGN_NO_STOP:
                 case SIGN_NO_LEFT:
                 case SIGN_NO_RIGHT:
                     cmd.command = CMD_GO;
@@ -209,6 +204,8 @@ void model_task() {
                     cmd.command = CMD_TURN;
                     commu.cmd_queue->push(cmd);
                     break;
+                case SIGN_NO_STOP:
+                case SIGN_ONLY_GO:
                 default:
                     break;
             }
