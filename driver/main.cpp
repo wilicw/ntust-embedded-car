@@ -47,7 +47,7 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_delay = 60;
+    const static int turning_delay = 65;
     const static int right_speed = 180;
     const static int turning_speed = 120;
     const static int forward_speed = 80;
