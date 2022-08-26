@@ -149,6 +149,7 @@ opencamera:
     cap.set(cv::CAP_PROP_FPS, 90);
 
     static int ret;
+    static uint32_t index;
     static cv::Mat frame;
     while (!exit_thread) {
         ret = cap.read(frame);
@@ -158,7 +159,9 @@ opencamera:
         sign_item_t sign_item = v.process(frame);
         if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
 
-        commu.sign_queue->push(sign_item);
+        cv::imwrite("./frame_data/frame" + to_string(index) + ".jpg", *(sign_item.cropped));
+        cout << "founded" << endl;
+        //        commu.sign_queue->push(sign_item);
     }
     cap.release();
 
