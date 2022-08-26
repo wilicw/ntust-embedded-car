@@ -15,7 +15,7 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-#define ENABLE_MOTOR
+//#define ENABLE_MOTOR
 #define ENABLE_CV
 #define ENABLE_TF
 
@@ -47,12 +47,12 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_delay = 65;
+    const static int turning_delay = 0;
     const static int right_speed = 180;
     const static int turning_speed = 120;
-    const static int forward_speed = 150;
+    const static int forward_speed = 180;
     const static float turning_scale = 0.9;
-    const static int init_speed = 80;
+    const static int init_speed = 100;
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
@@ -149,13 +149,14 @@ opencamera:
     cap.set(cv::CAP_PROP_FPS, 90);
 
     static int ret;
-    static uint32_t index;
+    static uint32_t index = 0, indexx = 0;
     static cv::Mat frame;
     while (!exit_thread) {
         ret = cap.read(frame);
         if (!ret) continue;
 
-        // cv::imwrite("frame.jpg", frame);
+        cv::imwrite("all_frame/run" + to_string(indexx++) + ".jpg", frame);
+
         sign_item_t sign_item = v.process(frame);
         if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
 
