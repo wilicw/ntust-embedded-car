@@ -25,26 +25,27 @@ int main(int argc, char** argv) {
 
     const int Q = 10000;
     cout << folder_path << " " << file_name << endl;
-    vector<pictureIO::pic_info> pictures = pictureIO::load_pictures(folder_path, file_name, Q, 1);
-    vector<pictureIO::pic_info> cropped_images;
+
     cout << "!!! START REG !!!" << endl;
     std::clock_t clk = std::clock();
-    for (pictureIO::pic_info & pic : pictures) {
-        try {
-            Vision::index = pic.index;
-            sign_item_t found = v.process(pic.img);
+
+    for (int i = 0; i<Q; i++) {
+        try{
+            string path = folder_path + file_name + to_string(i) +".jpg";
+            cv::Mat img = cv::imread(path)(cv::Rect(5, 5, 630, 470));
+            Vision::index = i;
+            sign_item_t found = v.process(img);
             if(found.cropped != nullptr){
 //                cout << pic.index << " founded" << endl;
-                cropped_images.push_back(pictureIO::pic_info(pic.index, *found.cropped));
+                cv::imwrite(path + "res" + to_string(i) + ".png", img);
             }else{
-//                cout << "nothing found: " << pic.index << endl;
+
             }
-//            cout << "LOADED: " << pic.index << endl;
+        }catch (...){
+//            std::cout << "ERROR!!!" << std::endl;
+            continue;
         }
-        catch (const char* str) {
-            cout << pic.index << " " << str << "\n";
-        }
+
     }
-    cout << clk << endl;
-    pictureIO::write_pictures(folder_path + "testdata/", cropped_images);
+    cout << "end with clock(ms) : " << clk << endl;
 }
