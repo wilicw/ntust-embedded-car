@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     string file_name;
     folder_path = "D:/Team/rasp_car/program/image_process/all_data_classifications/stop_line/";
     file_name = "stop_line_";
-    folder_path = "D:/Team/rasp_car/program/image_process/dataset0817/debug/";
+    folder_path = "D:/Team/rasp_car/program/image_process/dataset0817/mixed_data2/";
     file_name = "run";
 //    folder_path = "D:\\Team\\rasp_car\\program\\image_process\\all_mixdataset(can't use)\\picture\\";
 
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
             sign_item_t found = v.process(img);
             if(found.cropped != nullptr){
 //                cout << pic.index << " founded" << endl;
-                cv::imwrite(path + "res" + to_string(i) + ".png", img);
+                cv::imwrite(folder_path + "testdata/res" + to_string(i) + ".png", *(found.cropped));
             }else{
 
             }
