@@ -50,9 +50,9 @@ void control_task() {
     const static int turning_delay = 65;
     const static int right_speed = 180;
     const static int turning_speed = 120;
-    const static int forward_speed = 80;
+    const static int forward_speed = 150;
     const static float turning_scale = 0.9;
-    const static int init_speed = 50;
+    const static int init_speed = 80;
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
@@ -73,7 +73,7 @@ void control_task() {
         right_sensor = ir.right();
         distance = min(ur.distance(), distance - 14);
 
-        barrier = current_speed * 0.09 + 10;
+        barrier = current_speed * 0.085 + 8;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
             cout << distance << endl;
