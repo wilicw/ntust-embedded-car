@@ -15,7 +15,7 @@
 #include "ultrasonic.h"
 #include "vision.h"
 
-//#define ENABLE_MOTOR
+#define ENABLE_MOTOR
 #define ENABLE_CV
 #define ENABLE_TF
 
@@ -50,7 +50,7 @@ void control_task() {
     const static int turning_delay = 0;
     const static int right_speed = 180;
     const static int turning_speed = 120;
-    const static int forward_speed = 180;
+    const static int forward_speed = 120;
     const static float turning_scale = 0.9;
     const static int init_speed = 100;
     static int current_speed = init_speed;
@@ -64,7 +64,13 @@ void control_task() {
             cmd_item_t cmd;
             commu.cmd_queue->pop(cmd);
             distance = cmd.distance;
-            current_cmd = cmd.command;
+            cout << "distance:" << distance << endl;
+            if (distance <= 30) {
+                motor.turn(-255, -255);
+                motor.stop();
+                delay(1000);
+            }
+            // current_cmd = cmd.command;
         }
 
         servo.turn(1, 125);
@@ -73,10 +79,9 @@ void control_task() {
         right_sensor = ir.right();
         distance = min(ur.distance(), distance - 14);
 
-        barrier = current_speed * 0.085 + 8;
+        barrier = current_speed * 0.085 + 10;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
-            cout << distance << endl;
             if (current_cmd != CMD_NONE) {
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(right_speed, -right_speed + 20);
@@ -112,21 +117,18 @@ void control_task() {
                 current_speed = init_speed;
             }
         } else if (!(left_sensor ^ right_sensor)) {
-            cout << "Forward" << endl;
             left_analog = right_analog = 0;
             if (current_speed <= forward_speed) current_speed += 5;
             motor.turn(current_speed, current_speed);
         } else if (left_sensor == WALL) {
             if (left_analog < 255) left_analog += 5;
             right_analog = 0;
-            cout << "Right" << endl;
             motor.turn(
                 turning_speed * turning_scale,
                 turning_speed * (turning_scale - 0.2 - left_analog / 255.0));
         } else if (right_sensor == WALL) {
             if (right_analog < 255) right_analog += 5;
             left_analog = 0;
-            cout << "Left" << endl;
             motor.turn(
                 turning_speed * (turning_scale - 0.2 - right_analog / 255.0),
                 turning_speed * turning_scale);
@@ -155,14 +157,14 @@ opencamera:
         ret = cap.read(frame);
         if (!ret) continue;
 
-        cv::imwrite("all_frame/run" + to_string(indexx++) + ".jpg", frame);
+        // cv::imwrite("all_frame/run" + to_string(indexx++) + ".jpg", frame);
 
         sign_item_t sign_item = v.process(frame);
         if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
 
-        cv::imwrite("frame_data/frame" + to_string(index++) + ".jpg", *(sign_item.cropped));
-        cout << "founded" << endl;
-        //        commu.sign_queue->push(sign_item);
+        // cv::imwrite("frame_data/frame" + to_string(index++) + ".jpg", *(sign_item.cropped));
+        // cout << "founded" << endl;
+        commu.sign_queue->push(sign_item);
     }
     cap.release();
 
@@ -179,7 +181,7 @@ void model_task() {
             // cv::imwrite("test.jpg", *sign);
             predict_t p = m.evaluate(*sign.cropped);
             sign.cropped->release();
-            cout << p.possibility << " " << p.index << endl;
+            cout << "model predict: " << p.possibility << " " << p.index << endl;
             float distance = v.distance(*sign.center);
             cmd_item_t cmd;
             cmd.distance = distance;
