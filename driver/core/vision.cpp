@@ -1,16 +1,15 @@
 #include "vision.h"
-#define MANUAL_SVM
-#define DEBUG
+//#define MANUAL_SVM
+//#define DEBUG
 //#define laplacian_check_debug
 
 int Vision::index = 0;
 
 const unordered_map<char, Vision::PARM_t> Vision::PARM =
-    unordered_map<char, Vision::PARM_t>({
-        {'R', {10, 150, 76, 51, 3}},
-        {'B', {105, 130, 51, 17, 3}}});
+    unordered_map<char, Vision::PARM_t>({{'R', {10, 150, 76, 51, 3}},
+                                         {'B', {105, 130, 51, 17, 3}}});
 
-#define __coutline cout<<"LINE"<<__LINE__<<"; "
+#define __coutline cout << "LINE" << __LINE__ << "; "
 
 #ifdef DEBUG
 //#define DEBUG_RED
@@ -20,7 +19,6 @@ const unordered_map<char, Vision::PARM_t> Vision::PARM =
 #define DEBUG_BW_MIX
 #include "pictureIO.h"
 #endif
-
 
 float Vision::distance(cv::Point center) {
     constexpr int w = 640, h = 480;
@@ -51,21 +49,21 @@ sign_item_t Vision::process(cv::Mat image) {
 #endif
     const static sign_item_t empty_result = {nullptr, nullptr};
 
-    cv::copyMakeBorder(image, image, 2, 2, 2, 2, cv::BORDER_CONSTANT, cv::Scalar(0,40,0));
+    cv::copyMakeBorder(image, image, 2, 2, 2, 2, cv::BORDER_CONSTANT, cv::Scalar(0, 40, 0));
 
-    vector<cv::Mat> HSV_channels = this->cvt_HSV(image); // [0]:H, [1]:S, [2]:V
+    vector<cv::Mat> HSV_channels = this->cvt_HSV(image);  // [0]:H, [1]:S, [2]:V
 
     cv::Mat out_RED_hsv;
-///--------------RED channel--------------
+    ///--------------RED channel--------------
 
     pair<cv::Rect, cv::Point> red_pair = this->RED_CH(image, HSV_channels, out_RED_hsv);
 
-///--------------Blue channel--------------
+    ///--------------Blue channel--------------
 
     pair<cv::Rect, cv::Point> blue_pair = this->BLUE_CH(image, HSV_channels);
 
-///--------------White channel--------------
-    HSV_channels = this->cvt_HSV(image); // [0]:H, [1]:S, [2]:V
+    ///--------------White channel--------------
+    HSV_channels = this->cvt_HSV(image);  // [0]:H, [1]:S, [2]:V
     pair<cv::Rect, cv::Point> white_pair = this->WHITE_CH(image, HSV_channels, out_RED_hsv);
 
 #ifdef DEBUG
@@ -73,26 +71,26 @@ sign_item_t Vision::process(cv::Mat image) {
     cv::destroyAllWindows();
 #endif
 
-///--------------Judge R B W three channel's size--------------
+    ///--------------Judge R B W three channel's size--------------
     if (red_pair.first.area() == 0 && blue_pair.first.area() == 0 && white_pair.first.area() == 0) {
-//        cout << Vision::index << " " << "rect nothing found" << endl;
+        //        cout << Vision::index << " " << "rect nothing found" << endl;
         return empty_result;
     }
 
     vector<pair<cv::Rect, cv::Point>> pairs({red_pair, blue_pair, white_pair});
 
     int pair_index = this->find_max_rect(pairs);
-    if (pair_index == -1){
-//        cout << Vision::index << " " << "rect nothing found" << endl;
+    if (pair_index == -1) {
+        //        cout << Vision::index << " " << "rect nothing found" << endl;
         return empty_result;
     }
 
     cv::Mat cropped = image(pairs[pair_index].first);
     cv::resize(cropped, cropped, cv::Size(50, 50));
 
-    if(pair_index != 2){
+    if (pair_index != 2) {
         double lap = this->laplacian(cropped);
-        if (lap < 400){
+        if (lap < 400) {
 #ifdef MANUAL_SVM
             __coutline << Vision::index << " lap too small:" << lap << endl;
 #endif
@@ -124,11 +122,11 @@ double Vision::laplacian(cv::Mat image) {
 
 #ifdef laplacian_check_debug
     cv::Mat element2 = cv::getStructuringElement(
-            cv::MORPH_RECT, cv::Size(1 +1, 1 + 1),
-            cv::Point(0, 0));
+        cv::MORPH_RECT, cv::Size(1 + 1, 1 + 1),
+        cv::Point(0, 0));
     cv::erode(laplacian, laplacian, element2, cv::Point(0, 0), 1);
     cv::dilate(laplacian, laplacian, element2, cv::Point(0, 0), 1);
-//    laplacian = this->dilation(laplacian, 1);
+    //    laplacian = this->dilation(laplacian, 1);
     cv::imshow("lap dil ero", laplacian);
     cv::waitKey(0);
     cv::destroyAllWindows();
@@ -142,7 +140,7 @@ vector<cv::Mat> Vision::cvt_HSV(cv::Mat image) {
     cv::cvtColor(image, img_hsv, cv::COLOR_BGR2HSV);
 
     vector<cv::Mat> channels;
-    split(img_hsv, channels); // H S V
+    split(img_hsv, channels);  // H S V
 
 #ifdef DEBUG
 //    pictureIO::printMat(channels);
@@ -150,8 +148,6 @@ vector<cv::Mat> Vision::cvt_HSV(cv::Mat image) {
 
     return channels;
 }
-
-
 
 pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_channels, cv::Mat& out_hsv) {
 #ifdef DEBUG
@@ -202,7 +198,6 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
     cv::imshow("SxVthres", show_img);
 #endif
 
-
     cv::Mat HxSxV;
     cv::bitwise_and(SxVthres, H_channel, HxSxV);
 
@@ -219,8 +214,8 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
 
 #if defined(DEBUG) && defined(DEBUG_RED)
     show_img = image.clone();
-    cv::drawContours(show_img, hulls, -1, cv::Scalar(0,255,255), 2);
-    cv::rectangle(show_img, ret.first, cv::Scalar(0,255,0), 1);
+    cv::drawContours(show_img, hulls, -1, cv::Scalar(0, 255, 255), 2);
+    cv::rectangle(show_img, ret.first, cv::Scalar(0, 255, 0), 1);
     cv::imshow("RED rect&hull", show_img);
     cv::waitKey(0);
     cv::destroyAllWindows();
@@ -294,8 +289,8 @@ pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_cha
 
 #if defined(DEBUG) && defined(DEBUG_BLUE)
     show_img = image.clone();
-    cv::drawContours(show_img, hulls, -1, cv::Scalar(0,255,255), 2);
-    cv::rectangle(show_img, ret.first, cv::Scalar(0,255,0), 1);
+    cv::drawContours(show_img, hulls, -1, cv::Scalar(0, 255, 255), 2);
+    cv::rectangle(show_img, ret.first, cv::Scalar(0, 255, 0), 1);
     cv::imshow("BLUE rect&hull", show_img);
     cv::waitKey(0);
     cv::destroyAllWindows();
@@ -308,7 +303,6 @@ pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_cha
     return ret;
 }
 
-
 pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_channels, cv::Mat RED_hsv) {
 #ifdef DEBUG
     cv::Mat show_img;
@@ -318,23 +312,22 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat img_S_channel = HSV_channels[1].clone();
     cv::Mat img_V_channel = HSV_channels[2].clone();
 
-//------BLUE MASK------
+    //------BLUE MASK------
 
     cv::Mat Blue_MASK_V, Blue_MASK_H, Blue_MASK;
-    Blue_MASK_H = this->H_filter(img_H_channel, 90,105);
+    Blue_MASK_H = this->H_filter(img_H_channel, 90, 105);
     cv::threshold(img_V_channel, Blue_MASK_V, 160, 255, cv::THRESH_BINARY);
     cv::bitwise_and(Blue_MASK_H, Blue_MASK_V, Blue_MASK);
 
-
 #if defined(DEBUG) && defined(DEBUG_BW_MIX)
     show_img = img_S_channel.clone();
-//    cv::imshow("only_S", show_img);
+    //    cv::imshow("only_S", show_img);
 
     show_img = img_V_channel.clone();
 //    cv::imshow("only_V", show_img);
 #endif
 
-//------white channel------
+    //------white channel------
 
     cv::Mat WHITE_Sthres, WHITE_Vthres;
 
@@ -345,14 +338,13 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     // take white V channel
     cv::threshold(img_V_channel, WHITE_Vthres, 102, 255, cv::THRESH_BINARY);
 
-
     // multiply S V
     cv::Mat WHITE_SxV;
     cv::bitwise_and(WHITE_Sthres, WHITE_Vthres, WHITE_SxV);
 
     // OR with BLUE mask
     cv::Mat WHITE_SxV_blue;
-    cv::bitwise_or(WHITE_SxV,Blue_MASK, WHITE_SxV_blue);
+    cv::bitwise_or(WHITE_SxV, Blue_MASK, WHITE_SxV_blue);
 
     // dilation SV
     cv::Mat WHITE_SxV_ero = this->erosion(WHITE_SxV_blue, 5);
@@ -360,13 +352,13 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat WHITE_SxV_dil = this->dilation(WHITE_SxV_orgin, 10);
 
     cv::Mat WHITE_SxV_diff;
-    cv::subtract(WHITE_SxV_dil,  WHITE_SxV_orgin, WHITE_SxV_diff);
+    cv::subtract(WHITE_SxV_dil, WHITE_SxV_orgin, WHITE_SxV_diff);
     cv::Mat WHITE_SxV_diff_dil = this->dilation(WHITE_SxV_diff, 7);
 
 #if defined(DEBUG) && defined(DEBUG_WHITE)
 
     show_img = Blue_MASK.clone();
-//    cv::imshow("Blue_MASK", show_img);
+    //    cv::imshow("Blue_MASK", show_img);
 
     show_img = WHITE_Sthres.clone();
     cv::imshow("WHITE_Sthres", show_img);
@@ -387,9 +379,9 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("WHITE_SxV_diff_dil", show_img);
 #endif
 
-//------black channel------
+    //------black channel------
 
-// black -> 0.16 * S + V < 58.65(23%) OR V < 38(15%)
+    // black -> 0.16 * S + V < 58.65(23%) OR V < 38(15%)
 
     // V < 15%
     cv::Mat Black_Vthres;
@@ -409,7 +401,7 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     BLACK_SxVthres.convertTo(BLACK_SxVthres, CV_8UC1);
 
     // OR both togeter
-    cv::bitwise_or(Black_Vthres,BLACK_SxVthres,BLACK_SxVthres);
+    cv::bitwise_or(Black_Vthres, BLACK_SxVthres, BLACK_SxVthres);
 
     //dilation SV
     BLACK_SxVthres = this->dilation(BLACK_SxVthres, 5);
@@ -422,7 +414,7 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("BLACK_SxVthres", show_img);
 #endif
 
-//------sub red and black------
+    //------sub red and black------
 
     //dilation red
     RED_hsv = this->dilation(RED_hsv, 12);
@@ -431,11 +423,10 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
 #if defined(DEBUG) && defined(DEBUG_BLACK)
     show_img = R_B_diff.clone();
-    cv::imshow("R_B_diff",show_img);
+    cv::imshow("R_B_diff", show_img);
 #endif
 
-
-//------Black * White------
+    //------Black * White------
     cv::Mat BxW;
     cv::bitwise_and(R_B_diff, WHITE_SxV_diff_dil, BxW);
 
@@ -444,20 +435,20 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("BxW", show_img);
 #endif
 
-//------judge sum val------
+    //------judge sum val------
     int whitesum = cv::sum(BxW)[0];
 
-    if(whitesum < 60000){
+    if (whitesum < 60000) {
 #ifdef MANUAL_SVM
-        if(whitesum > 100) {
-            __coutline << Vision::index << " " << "WHITE sum " << whitesum << endl;
+        if (whitesum > 100) {
+            __coutline << Vision::index << " "
+                       << "WHITE sum " << whitesum << endl;
         }
 #endif
         return pair<cv::Rect, cv::Point>();
     }
 
-
-//------judge if white is in black------
+    //------judge if white is in black------
 
     cv::Mat R_B_diff_dil = this->dilation(R_B_diff, 7);
     cv::Mat anothor_BxW;
@@ -483,18 +474,18 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("WHITE_SxV_orgin_filled", show_img);
 
     show_img = image.clone();
-    cv::drawContours(show_img, black_countour, -1, cv::Scalar(0,255,0), 1);
+    cv::drawContours(show_img, black_countour, -1, cv::Scalar(0, 255, 0), 1);
     cv::imshow("contoured img", show_img);
 #endif
 
-    if(black_countour.size() != 1){
+    if (black_countour.size() != 1) {
 #ifdef MANUAL_SVM
         __coutline << Vision::index << "black_countour size too much : " << black_countour.size() << endl;
 #endif
         return pair<cv::Rect, cv::Point>();
     }
 
-//------fill white image------
+    //------fill white image------
     // cv::Point white_point;
     cv::minMaxLoc(BxW, NULL, NULL, NULL, &white_point);
 
@@ -508,39 +499,38 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("WHITE_SxV_diff_dil_filled_img", show_img);
 #endif
 
-
-//------for test------
-    cv::Mat BandW ;
+    //------for test------
+    cv::Mat BandW;
     cv::bitwise_and(White_filled_img, Black_filled_img, BandW);
 #if defined(DEBUG) && defined(DEBUG_BW_MIX)
     show_img = BandW.clone();
     cv::imshow("BandW", show_img);
 #endif
 
-//------find contours and rectangle------
+    //------find contours and rectangle------
     vector<vector<cv::Point>> contours = this->find_contours(BandW);
     vector<vector<cv::Point>> hulls = this->contours_to_hulls(contours);
     pair<cv::Rect, cv::Point> ret = this->find_rectangle(hulls);
 
     //------judge rectangle area
-    if(ret.first.area() > 75000){
+    if (ret.first.area() > 75000) {
 #ifdef MANUAL_SVM
-        __coutline << Vision::index << " " << "WHITE rectangle area " << ret.first.area() << endl;
+        __coutline << Vision::index << " "
+                   << "WHITE rectangle area " << ret.first.area() << endl;
 #endif
         return pair<cv::Rect, cv::Point>();
     }
 
 #if defined(DEBUG) && defined(DEBUG_BW_MIX)
     show_img = image.clone();
-    cv::drawContours(show_img, contours, -1, cv::Scalar(255,255,0), 2);
-    cv::drawContours(show_img, hulls, -1, cv::Scalar(0,255,255), 2);
-    cv::rectangle(show_img, ret.first, cv::Scalar(0,255,0), 1);
+    cv::drawContours(show_img, contours, -1, cv::Scalar(255, 255, 0), 2);
+    cv::drawContours(show_img, hulls, -1, cv::Scalar(0, 255, 255), 2);
+    cv::rectangle(show_img, ret.first, cv::Scalar(0, 255, 0), 1);
     cv::imshow("white rect&hull", show_img);
 
     cv::waitKey(0);
     cv::destroyAllWindows();
 #endif
-
 
 #ifdef DEBUG
     cv::waitKey(0);
@@ -549,24 +539,23 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     return ret;
 }
 
-
 cv::Mat Vision::H_filter(cv::Mat H_channel, const int& min, const int& max) {
     cv::Mat ret;
     cv::inRange(H_channel, min, max, ret);
     return ret;
 }
 
-cv::Mat Vision::dilation(cv::Mat image, const int &morph_size) {
+cv::Mat Vision::dilation(cv::Mat image, const int& morph_size) {
     cv::Mat kernal = cv::getStructuringElement(
-            cv::MORPH_RECT, cv::Size(morph_size, morph_size));
+        cv::MORPH_RECT, cv::Size(morph_size, morph_size));
     cv::Mat ret;
     cv::dilate(image, ret, kernal);
     return ret;
 }
 
-cv::Mat Vision::erosion(cv::Mat image, const int &morph_size) {
+cv::Mat Vision::erosion(cv::Mat image, const int& morph_size) {
     cv::Mat kernal = cv::getStructuringElement(
-            cv::MORPH_RECT, cv::Size(morph_size, morph_size));
+        cv::MORPH_RECT, cv::Size(morph_size, morph_size));
     cv::Mat ret;
     cv::erode(image, ret, kernal);
     return ret;
@@ -580,9 +569,9 @@ vector<vector<cv::Point>> Vision::find_contours(cv::Mat image) {
     return contours;
 }
 
-vector<vector<cv::Point>> Vision::contours_to_hulls(vector<vector<cv::Point>> contours){
+vector<vector<cv::Point>> Vision::contours_to_hulls(vector<vector<cv::Point>> contours) {
     vector<vector<cv::Point>> hulls;
-    for(auto& contour:contours){
+    for (auto& contour : contours) {
         approxPolyDP(contour, contour, 8, true);
         // create hull array for convex hull points
         vector<cv::Point> hull;
@@ -596,8 +585,7 @@ pair<cv::Rect, cv::Point> Vision::find_rectangle(vector<vector<cv::Point>> hulls
     cv::Rect rect;
     cv::Point contour_center;
 
-    for (auto &hull: hulls) {
-
+    for (auto& hull : hulls) {
         const double length = cv::arcLength(hull, true);
 
         //find rectangle
@@ -617,7 +605,6 @@ pair<cv::Rect, cv::Point> Vision::find_rectangle(vector<vector<cv::Point>> hulls
     return make_pair(rect, contour_center);
 }
 
-
 int Vision::find_max_rect(vector<pair<cv::Rect, cv::Point>> pairs) {
     int max_index = -1, max_area = 0;
     for (int i = 0; i < pairs.size(); i++) {
@@ -631,5 +618,3 @@ int Vision::find_max_rect(vector<pair<cv::Rect, cv::Point>> pairs) {
 
 void Vision::contrast_normalization(const cv::Mat image) {
 }
-
-

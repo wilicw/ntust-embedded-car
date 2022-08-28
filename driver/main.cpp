@@ -1,6 +1,5 @@
 #include <wiringPi.h>
 
-#include <atomic>
 #include <csignal>
 #include <cstdint>
 #include <iostream>
@@ -27,8 +26,6 @@
 
 using namespace std;
 
-volatile static atomic<bool> exit_thread(false);
-
 Motor motor(I2C_ADDR);
 IR ir(IR_LEFT, IR_RIGHT);
 Ultrasonic ur(EchoPin, TrigPin);
@@ -38,7 +35,7 @@ Communication commu;
 Model m("/home/pi/project/carNN/model.tflite");
 
 void signal_callback_handler(int signum) {
-    exit_thread = true;
+    commu.exit_process();
     motor.stop();
     exit(signum);
 }
@@ -47,7 +44,6 @@ void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
-    const static int turning_delay = 60;
     const static int right_speed = 180;
     const static int turning_speed = 120;
     const static int forward_speed = 80;
@@ -56,77 +52,74 @@ void control_task() {
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
+    static cmd_item_t queue_cmd;
     static cmd_t current_cmd = CMD_NONE;
 
-    while (!exit_thread) {
+    while (!Communication::is_exit_thread) {
         distance = 1e9;
         while (!commu.cmd_queue->empty()) {
-            cmd_item_t cmd;
-            commu.cmd_queue->pop(cmd);
-            distance = cmd.distance;
-            current_cmd = cmd.command;
+            commu.cmd_queue->pop(queue_cmd);
+            distance = queue_cmd.distance - 10;
+            cout << "distance:" << distance << endl;
+            current_cmd = queue_cmd.command;
         }
 
         servo.turn(1, 125);
         servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
-        distance = min(ur.distance(), distance - 14);
+        distance = min(ur.distance(), distance);
 
-        barrier = current_speed * 0.09 + 10;
+        barrier = current_speed * 0.085 + 10;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
-            cout << distance << endl;
             if (current_cmd != CMD_NONE) {
+                commu.halt_process();
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(right_speed, -right_speed + 20);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_RIGHT) {
                     motor.turn(-right_speed + 20, right_speed);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_HALT) {
                     motor.stop();
-                    delay(1000);
+                    delay(3000);
+                    motor.turn(init_speed, init_speed);
+                    delay(300);
+                    while (commu.cmd_queue->pop(queue_cmd))
+                        ;
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_TURN) {
-                    motor.stop();
-                    delay(1000);
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_GO) {
                     if (left_sensor == WALL)
                         motor.turn(right_speed, -right_speed + 20);
                     else
                         motor.turn(-right_speed + 20, right_speed);
-                    delay(turning_delay);
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
+                commu.continue_process();
             } else {
                 if (left_sensor == WALL)
                     motor.turn(right_speed, -right_speed + 20);
                 else
                     motor.turn(-right_speed + 20, right_speed);
-                delay(turning_delay);
                 current_speed = init_speed;
             }
         } else if (!(left_sensor ^ right_sensor)) {
-            cout << "Forward" << endl;
             left_analog = right_analog = 0;
             if (current_speed <= forward_speed) current_speed += 5;
             motor.turn(current_speed, current_speed);
         } else if (left_sensor == WALL) {
             if (left_analog < 255) left_analog += 5;
             right_analog = 0;
-            cout << "Right" << endl;
             motor.turn(
                 turning_speed * turning_scale,
                 turning_speed * (turning_scale - 0.2 - left_analog / 255.0));
         } else if (right_sensor == WALL) {
             if (right_analog < 255) right_analog += 5;
             left_analog = 0;
-            cout << "Left" << endl;
             motor.turn(
                 turning_speed * (turning_scale - 0.2 - right_analog / 255.0),
                 turning_speed * turning_scale);
@@ -149,15 +142,20 @@ opencamera:
     cap.set(cv::CAP_PROP_FPS, 90);
 
     static int ret;
+    static uint32_t index = 0, indexx = 0;
     static cv::Mat frame;
-    while (!exit_thread) {
+    while (!Communication::is_exit_thread) {
+        if (Communication::is_halt_process) continue;
         ret = cap.read(frame);
         if (!ret) continue;
 
-        // cv::imwrite("frame.jpg", frame);
+        // cv::imwrite("all_frame/run" + to_string(indexx++) + ".jpg", frame);
+
         sign_item_t sign_item = v.process(frame);
         if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
 
+        // cv::imwrite("frame_data/frame" + to_string(index++) + ".jpg", *(sign_item.cropped));
+        // cout << "founded" << endl;
         commu.sign_queue->push(sign_item);
     }
     cap.release();
@@ -167,15 +165,16 @@ opencamera:
 
 void model_task() {
 #ifdef ENABLE_TF
-    while (!exit_thread) {
+    while (!Communication::is_exit_thread) {
         while (!commu.sign_queue->empty()) {
+            if (Communication::is_halt_process) continue;
             sign_item_t sign;
             commu.sign_queue->pop(sign);
 
             // cv::imwrite("test.jpg", *sign);
             predict_t p = m.evaluate(*sign.cropped);
             sign.cropped->release();
-            cout << p.possibility << " " << p.index << endl;
+            cout << "model predict: " << p.possibility << " " << p.index << endl;
             float distance = v.distance(*sign.center);
             cmd_item_t cmd;
             cmd.distance = distance;
@@ -186,10 +185,8 @@ void model_task() {
                     cmd.command = CMD_HALT;
                     commu.cmd_queue->push(cmd);
                     break;
-                case SIGN_ONLY_GO:
                 case SIGN_GO_LEFT:
                 case SIGN_GO_RIGHT:
-                case SIGN_NO_STOP:
                 case SIGN_NO_LEFT:
                 case SIGN_NO_RIGHT:
                     cmd.command = CMD_GO;
@@ -207,6 +204,8 @@ void model_task() {
                     cmd.command = CMD_TURN;
                     commu.cmd_queue->push(cmd);
                     break;
+                case SIGN_NO_STOP:
+                case SIGN_ONLY_GO:
                 default:
                     break;
             }
