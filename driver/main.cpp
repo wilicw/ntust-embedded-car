@@ -32,7 +32,7 @@ Ultrasonic ur(EchoPin, TrigPin);
 Servo servo(I2C_ADDR);
 Vision v;
 Communication commu;
-Model m("/home/pi/project/carNN/model.tflite");
+Model m("/home/pi/project/carNN/model20.tflite");
 
 void signal_callback_handler(int signum) {
     commu.exit_process();
@@ -59,7 +59,7 @@ void control_task() {
         distance = 1e9;
         while (!commu.cmd_queue->empty()) {
             commu.cmd_queue->pop(queue_cmd);
-            distance = queue_cmd.distance - 10;
+            distance = queue_cmd.distance - 8;
             cout << "distance:" << distance << endl;
             current_cmd = queue_cmd.command;
         }
@@ -75,19 +75,22 @@ void control_task() {
         if (distance <= barrier) {
             if (current_cmd != CMD_NONE) {
                 commu.halt_process();
+                while (!commu.cmd_queue->empty()) {
+                    commu.cmd_queue->pop(queue_cmd);
+                }
                 if (current_cmd == CMD_LEFT) {
-                    motor.turn(right_speed, -right_speed + 20);
-                    current_speed = init_speed;
-                } else if (current_cmd == CMD_RIGHT) {
                     motor.turn(-right_speed + 20, right_speed);
                     current_speed = init_speed;
+                    delay(40);
+                } else if (current_cmd == CMD_RIGHT) {
+                    motor.turn(right_speed, -right_speed + 20);
+                    current_speed = init_speed;
+                    delay(40);
                 } else if (current_cmd == CMD_HALT) {
                     motor.stop();
                     delay(3000);
                     motor.turn(init_speed, init_speed);
                     delay(300);
-                    while (commu.cmd_queue->pop(queue_cmd))
-                        ;
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_TURN) {
                     current_speed = init_speed;
@@ -99,6 +102,9 @@ void control_task() {
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
+                while (!commu.cmd_queue->empty()) {
+                    commu.cmd_queue->pop(queue_cmd);
+                }
                 commu.continue_process();
             } else {
                 if (left_sensor == WALL)
@@ -167,7 +173,6 @@ void model_task() {
 #ifdef ENABLE_TF
     while (!Communication::is_exit_thread) {
         while (!commu.sign_queue->empty()) {
-            if (Communication::is_halt_process) continue;
             sign_item_t sign;
             commu.sign_queue->pop(sign);
 
@@ -179,35 +184,39 @@ void model_task() {
             cmd_item_t cmd;
             cmd.distance = distance;
 
-            switch (p.index) {
-                case SIGN_STOP_LINE:
-                case SIGN_STOP_PIC:
-                    cmd.command = CMD_HALT;
-                    commu.cmd_queue->push(cmd);
-                    break;
-                case SIGN_GO_LEFT:
-                case SIGN_GO_RIGHT:
-                case SIGN_NO_LEFT:
-                case SIGN_NO_RIGHT:
-                    cmd.command = CMD_GO;
-                    commu.cmd_queue->push(cmd);
-                    break;
-                case SIGN_ONLY_LEFT:
-                    cmd.command = CMD_LEFT;
-                    commu.cmd_queue->push(cmd);
-                    break;
-                case SIGN_ONLY_RIGHT:
-                    cmd.command = CMD_RIGHT;
-                    commu.cmd_queue->push(cmd);
-                    break;
-                case SIGN_NOT_GO:
-                    cmd.command = CMD_TURN;
-                    commu.cmd_queue->push(cmd);
-                    break;
-                case SIGN_NO_STOP:
-                case SIGN_ONLY_GO:
-                default:
-                    break;
+            if (!Communication::is_halt_process) {
+                switch (p.index) {
+                    case SIGN_STOP_LINE:
+                    case SIGN_STOP_PIC:
+                        cmd.command = CMD_HALT;
+                        commu.cmd_queue->push(cmd);
+                        break;
+                    case SIGN_GO_LEFT:
+                    case SIGN_GO_RIGHT:
+                    case SIGN_NO_LEFT:
+                    case SIGN_NO_RIGHT:
+                        cmd.command = CMD_GO;
+                        commu.cmd_queue->push(cmd);
+                        break;
+                    case SIGN_ONLY_LEFT:
+                        cmd.command = CMD_LEFT;
+                        commu.cmd_queue->push(cmd);
+                        break;
+                    case SIGN_ONLY_RIGHT:
+                        cmd.command = CMD_RIGHT;
+                        commu.cmd_queue->push(cmd);
+                        break;
+                    case SIGN_NOT_GO:
+                        cmd.command = CMD_TURN;
+                        commu.cmd_queue->push(cmd);
+                        break;
+                    case SIGN_NO_STOP:
+                    case SIGN_ONLY_GO:
+                    default:
+                        break;
+                }
+            } else {
+                cout << "Halt" << endl;
             }
         }
     }
