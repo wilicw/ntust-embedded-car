@@ -80,7 +80,7 @@ void control_task() {
             }
         }
 
-        servo.turn(1, 125);
+        servo.turn(1, 130);
         servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
@@ -199,7 +199,7 @@ void model_task() {
             cmd_item_t cmd;
             cmd.distance = distance;
 
-            if (!Communication::is_halt_process || p.possibility >= 0.9f) {
+            if (!Communication::is_halt_process && p.possibility >= 0.9f) {
                 switch (p.index) {
                     case SIGN_STOP_LINE:
                     case SIGN_STOP_PIC:
