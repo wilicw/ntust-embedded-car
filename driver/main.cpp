@@ -40,13 +40,24 @@ void signal_callback_handler(int signum) {
     exit(signum);
 }
 
+void clear_queue() {
+    while (!commu.cmd_queue->empty()) {
+        static cmd_item_t _;
+        commu.cmd_queue->pop(_);
+    }
+    while (!commu.sign_queue->empty()) {
+        static sign_item_t _;
+        commu.sign_queue->pop(_);
+    }
+}
+
 void control_task() {
     static int left_sensor, right_sensor;
     static double distance;
 
     const static int right_speed = 180;
     const static int turning_speed = 120;
-    const static int forward_speed = 80;
+    const static int forward_speed = 50;
     const static float turning_scale = 0.9;
     const static int init_speed = 50;
     static int current_speed = init_speed;
@@ -59,9 +70,14 @@ void control_task() {
         distance = 1e9;
         while (!commu.cmd_queue->empty()) {
             commu.cmd_queue->pop(queue_cmd);
-            distance = queue_cmd.distance - 8;
+            distance = queue_cmd.distance - 10;
             cout << "distance:" << distance << endl;
-            current_cmd = queue_cmd.command;
+            if (distance >= 6) {
+                current_cmd = queue_cmd.command;
+            } else {
+                current_cmd = CMD_NONE;
+                distance = 1e9;
+            }
         }
 
         servo.turn(1, 125);
@@ -75,9 +91,7 @@ void control_task() {
         if (distance <= barrier) {
             if (current_cmd != CMD_NONE) {
                 commu.halt_process();
-                while (!commu.cmd_queue->empty()) {
-                    commu.cmd_queue->pop(queue_cmd);
-                }
+                clear_queue();
                 if (current_cmd == CMD_LEFT) {
                     motor.turn(-right_speed + 20, right_speed);
                     current_speed = init_speed;
@@ -88,10 +102,13 @@ void control_task() {
                     delay(40);
                 } else if (current_cmd == CMD_HALT) {
                     motor.stop();
+                    clear_queue();
                     delay(3000);
+                    clear_queue();
                     motor.turn(init_speed, init_speed);
                     delay(300);
                     current_speed = init_speed;
+                    clear_queue();
                 } else if (current_cmd == CMD_TURN) {
                     current_speed = init_speed;
                 } else if (current_cmd == CMD_GO) {
@@ -102,9 +119,7 @@ void control_task() {
                     current_speed = init_speed;
                 }
                 current_cmd = CMD_NONE;
-                while (!commu.cmd_queue->empty()) {
-                    commu.cmd_queue->pop(queue_cmd);
-                }
+                clear_queue();
                 commu.continue_process();
             } else {
                 if (left_sensor == WALL)
@@ -184,7 +199,7 @@ void model_task() {
             cmd_item_t cmd;
             cmd.distance = distance;
 
-            if (!Communication::is_halt_process) {
+            if (!Communication::is_halt_process || p.possibility >= 0.9f) {
                 switch (p.index) {
                     case SIGN_STOP_LINE:
                     case SIGN_STOP_PIC:
@@ -216,6 +231,7 @@ void model_task() {
                         break;
                 }
             } else {
+                clear_queue();
                 cout << "Halt" << endl;
             }
         }
