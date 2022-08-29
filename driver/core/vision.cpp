@@ -154,9 +154,9 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
     cv::Mat H_channel = this->H_filter(img_H_channel, Vision::PARM.at('R').H_filter_MIN, Vision::PARM.at('R').H_filter_MAX);
     H_channel = 255 - H_channel;
@@ -233,9 +233,9 @@ pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_cha
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
     cv::Mat H_channel = this->H_filter(img_H_channel, Vision::PARM.at('B').H_filter_MIN, Vision::PARM.at('B').H_filter_MAX);
 
@@ -308,9 +308,9 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
     //------BLUE MASK------
 
