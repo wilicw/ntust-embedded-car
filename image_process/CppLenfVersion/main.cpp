@@ -27,14 +27,16 @@ int main(int argc, char** argv) {
     cout << folder_path << " " << file_name << endl;
 
     cout << "!!! START REG !!!" << endl;
-    std::clock_t clk = std::clock();
 
+    std::clock_t clk = std::clock();
     for (int i = 0; i<Q; i++) {
         try{
             string path = folder_path + file_name + to_string(i) +".jpg";
             cv::Mat img = cv::imread(path)(cv::Rect(5, 5, 630, 470));
             Vision::index = i;
+            clk = std::clock();
             sign_item_t found = v.process(img);
+            cout << "end with clock(ms) : " << std::clock() - clk << endl;
             if(found.cropped != nullptr){
 //                cout << pic.index << " founded" << endl;
                 string ind = to_string(i);
@@ -47,7 +49,6 @@ int main(int argc, char** argv) {
 //            std::cout << "ERROR!!!" << std::endl;
             continue;
         }
-
     }
-    cout << "end with clock(ms) : " << std::clock() - clk << endl;
+
 }

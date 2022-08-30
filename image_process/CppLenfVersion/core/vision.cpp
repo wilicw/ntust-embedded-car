@@ -2,7 +2,7 @@
 //#define MANUAL_SVM
 //#define DEBUG
 //#define laplacian_check_debug
-
+//#define TIME_DEBUG
 int Vision::index = 0;
 
 const unordered_map<char, Vision::PARM_t> Vision::PARM =
@@ -49,25 +49,30 @@ sign_item_t Vision::process(cv::Mat image) {
 #ifdef DEBUG
     cv::Mat cloned = image.clone();
 #endif
+//    std::clock_t clk = std::clock();
     const static sign_item_t empty_result = {nullptr, nullptr};
 
     cv::copyMakeBorder(image, image, 2, 2, 2, 2, cv::BORDER_CONSTANT, cv::Scalar(0,40,0));
 
     vector<cv::Mat> HSV_channels = this->cvt_HSV(image); // [0]:H, [1]:S, [2]:V
+//    __coutline << "  TO HSV : " << std::clock() - clk << endl;
+//    clk = std::clock();
 
     cv::Mat out_RED_hsv;
 ///--------------RED channel--------------
 
     pair<cv::Rect, cv::Point> red_pair = this->RED_CH(image, HSV_channels, out_RED_hsv);
-
+//    __coutline << "  RED CH : " << std::clock() - clk << endl;
+//    clk = std::clock();
 ///--------------Blue channel--------------
 
     pair<cv::Rect, cv::Point> blue_pair = this->BLUE_CH(image, HSV_channels);
-
+//    __coutline << " BLUE CH : " << std::clock() - clk << endl;
+//    clk = std::clock();
 ///--------------White channel--------------
-    HSV_channels = this->cvt_HSV(image); // [0]:H, [1]:S, [2]:V
-    pair<cv::Rect, cv::Point> white_pair = this->WHITE_CH(image, HSV_channels, out_RED_hsv);
 
+    pair<cv::Rect, cv::Point> white_pair = this->WHITE_CH(image, HSV_channels, out_RED_hsv);
+//    __coutline << "WHITE CH : " << std::clock() - clk << endl;
 #ifdef DEBUG
     cv::waitKey(0);
     cv::destroyAllWindows();
@@ -104,6 +109,7 @@ sign_item_t Vision::process(cv::Mat image) {
 
     ret.cropped = new cv::Mat(cropped);
     ret.center = new cv::Point(pairs[pair_index].second);
+
     return ret;
 }
 
@@ -158,12 +164,12 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
     cv::Mat H_channel = this->H_filter(img_H_channel, Vision::PARM.at('R').H_filter_MIN, Vision::PARM.at('R').H_filter_MAX);
-    H_channel = 255 - H_channel;
+    cv::bitwise_not(H_channel, H_channel);
 
 #if defined(DEBUG) and defined(DEBUG_RED)
     show_img = H_channel.clone();
@@ -206,7 +212,7 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
     cv::Mat HxSxV;
     cv::bitwise_and(SxVthres, H_channel, HxSxV);
 
-    out_hsv = HxSxV.clone();
+    out_hsv = HxSxV;
 
 #if defined(DEBUG) and defined(DEBUG_RED)
     show_img = HxSxV.clone();
@@ -238,9 +244,9 @@ pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_cha
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
     cv::Mat H_channel = this->H_filter(img_H_channel, Vision::PARM.at('B').H_filter_MIN, Vision::PARM.at('B').H_filter_MAX);
 
@@ -314,17 +320,23 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat show_img;
 #endif
 
-    cv::Mat img_H_channel = HSV_channels[0].clone();
-    cv::Mat img_S_channel = HSV_channels[1].clone();
-    cv::Mat img_V_channel = HSV_channels[2].clone();
+    cv::Mat img_H_channel = HSV_channels[0];
+    cv::Mat img_S_channel = HSV_channels[1];
+    cv::Mat img_V_channel = HSV_channels[2];
 
 //------BLUE MASK------
-
+#ifdef TIME_DEBUG
+    std::clock_t clk = std::clock();
+#endif
     cv::Mat Blue_MASK_V, Blue_MASK_H, Blue_MASK;
     Blue_MASK_H = this->H_filter(img_H_channel, 90,105);
     cv::threshold(img_V_channel, Blue_MASK_V, 160, 255, cv::THRESH_BINARY);
     cv::bitwise_and(Blue_MASK_H, Blue_MASK_V, Blue_MASK);
 
+#ifdef TIME_DEBUG
+    cout << "W: blue mask:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
 
 #if defined(DEBUG) and defined(DEBUG_BW_MIX)
     show_img = img_S_channel.clone();
@@ -340,7 +352,7 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
     // white S channel
     cv::threshold(img_S_channel, WHITE_Sthres, 28, 255, cv::THRESH_BINARY);
-    WHITE_Sthres = 255 - WHITE_Sthres;
+    cv::bitwise_not(WHITE_Sthres, WHITE_Sthres);
 
     // take white V channel
     cv::threshold(img_V_channel, WHITE_Vthres, 102, 255, cv::THRESH_BINARY);
@@ -354,6 +366,11 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat WHITE_SxV_blue;
     cv::bitwise_or(WHITE_SxV,Blue_MASK, WHITE_SxV_blue);
 
+#ifdef TIME_DEBUG
+//    cout << "W: white SV:" << std::clock() - clk << endl;
+//    clk = std::clock();
+#endif
+
     // dilation SV
     cv::Mat WHITE_SxV_ero = this->erosion(WHITE_SxV_blue, 5);
     cv::Mat WHITE_SxV_orgin = this->dilation(WHITE_SxV_ero, 5);
@@ -362,6 +379,11 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat WHITE_SxV_diff;
     cv::subtract(WHITE_SxV_dil,  WHITE_SxV_orgin, WHITE_SxV_diff);
     cv::Mat WHITE_SxV_diff_dil = this->dilation(WHITE_SxV_diff, 7);
+
+#ifdef TIME_DEBUG
+    cout << "W: white SV whole:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
 
 #if defined(DEBUG) and defined(DEBUG_WHITE)
 
@@ -391,10 +413,12 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
 // black -> 0.16 * S + V < 58.65(23%) OR V < 38(15%)
 
+
+
     // V < 15%
     cv::Mat Black_Vthres;
     cv::threshold(img_V_channel, Black_Vthres, 38, 255, cv::THRESH_BINARY);
-    Black_Vthres = 255 - Black_Vthres;
+    cv::bitwise_not(Black_Vthres, Black_Vthres);
 
     // 0.16 * S + V < 58.65(23%)
     cv::Mat img_S_channel_32F, img_V_channel_32F;
@@ -405,7 +429,7 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
     cv::Mat BLACK_SxVthres;
     cv::threshold(BLACK_016S_V, BLACK_SxVthres, 59, 255, cv::THRESH_BINARY);
-    BLACK_SxVthres = 255 - BLACK_SxVthres;
+    cv::bitwise_not(BLACK_SxVthres, BLACK_SxVthres);
     BLACK_SxVthres.convertTo(BLACK_SxVthres, CV_8UC1);
 
     // OR both togeter
@@ -413,6 +437,11 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
     //dilation SV
     BLACK_SxVthres = this->dilation(BLACK_SxVthres, 5);
+
+#ifdef TIME_DEBUG
+    cout << "W: black SV whole:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
 
 #if defined(DEBUG) and defined(DEBUG_BLACK)
     BLACK_016S_V.convertTo(show_img, CV_8UC1);
@@ -429,6 +458,11 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Mat R_B_diff;
     cv::subtract(BLACK_SxVthres, RED_hsv, R_B_diff);
 
+#ifdef TIME_DEBUG
+    cout << "W: sub red and black:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
+
 #if defined(DEBUG) and defined(DEBUG_BLACK)
     show_img = R_B_diff.clone();
     cv::imshow("R_B_diff",show_img);
@@ -444,6 +478,11 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::imshow("BxW", show_img);
 #endif
 
+#ifdef TIME_DEBUG
+    clk = std::clock();
+#endif
+
+
 //------judge sum val------
     int whitesum = cv::sum(BxW)[0];
 
@@ -456,6 +495,10 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
         return pair<cv::Rect, cv::Point>();
     }
 
+#ifdef TIME_DEBUG
+    clk = std::clock();
+#endif
+
 
 //------judge if white is in black------
 
@@ -466,14 +509,14 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
     cv::Point white_point;
     cv::minMaxLoc(anothor_BxW, NULL, NULL, NULL, &white_point);
 
-    cv::Mat filled_img = WHITE_SxV_orgin.clone();
-    cv::floodFill(filled_img, white_point, 127);
+    cv::Mat Black_filled_img = WHITE_SxV_orgin;
+    cv::floodFill(Black_filled_img, white_point, 127);
 
-    cv::inRange(filled_img, 120, 130, filled_img);
+    cv::inRange(Black_filled_img, 120, 130, Black_filled_img);
 
     vector<vector<cv::Point>> black_countour;
     vector<cv::Vec4i> hierarchy;
-    cv::findContours(filled_img, black_countour, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+    cv::findContours(Black_filled_img, black_countour, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
 
 #if defined(DEBUG) and defined(DEBUG_BW_MIX)
     show_img = filled_img.clone();
@@ -491,23 +534,35 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
         return pair<cv::Rect, cv::Point>();
     }
 
+#ifdef TIME_DEBUG
+    cout << "W: white is in black:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
+
 //------fill white image------
     // cv::Point white_point;
     cv::minMaxLoc(BxW, NULL, NULL, NULL, &white_point);
 
-    filled_img = WHITE_SxV_diff_dil.clone();
-    cv::floodFill(filled_img, white_point, 127);
+    cv::Mat White_filled_img = WHITE_SxV_diff_dil;
+    cv::floodFill(White_filled_img, white_point, 127);
 
-    cv::inRange(filled_img, 120, 130, filled_img);
+    cv::inRange(White_filled_img, 120, 130, White_filled_img);
 
 #if defined(DEBUG) and defined(DEBUG_BW_MIX)
     show_img = filled_img.clone();
     cv::imshow("WHITE_SxV_diff_dil_filled_img", show_img);
 #endif
+#ifdef TIME_DEBUG
+    cout << "W: floodfill:" << std::clock() - clk << endl;
+    clk = std::clock();
+#endif
 
+//------BxW to find contours------
+    cv::Mat BandW;
+    cv::bitwise_and(White_filled_img, Black_filled_img, BandW);
 
-//------find contours and rectangle------
-    vector<vector<cv::Point>> contours = this->find_contours(filled_img);
+    //------find contours and rectangle------
+    vector<vector<cv::Point>> contours = this->find_contours(BandW);
     vector<vector<cv::Point>> hulls = this->contours_to_hulls(contours);
     pair<cv::Rect, cv::Point> ret = this->find_rectangle(hulls);
 
@@ -534,6 +589,10 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 #ifdef DEBUG
     cv::waitKey(0);
     cv::destroyAllWindows();
+#endif
+#ifdef TIME_DEBUG
+    cout << "W: contours:" << std::clock() - clk << endl;
+    clk = std::clock();
 #endif
     return ret;
 }
@@ -562,7 +621,7 @@ cv::Mat Vision::erosion(cv::Mat image, const int &morph_size) {
 }
 
 vector<vector<cv::Point>> Vision::find_contours(cv::Mat image) {
-    cv::Mat copy = image.clone();
+    cv::Mat copy = image;
     vector<vector<cv::Point>> contours;
     vector<cv::Vec4i> hierarchy;
     cv::findContours(copy, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
