@@ -41,14 +41,9 @@ void signal_callback_handler(int signum) {
 }
 
 void clear_queue() {
-    while (!commu.cmd_queue->empty()) {
-        static cmd_item_t _;
-        commu.cmd_queue->pop(_);
-    }
-    while (!commu.sign_queue->empty()) {
-        static sign_item_t _;
+    static sign_item_t _;
+    while (!commu.sign_queue->empty())
         commu.sign_queue->pop(_);
-    }
 }
 
 void control_task() {
@@ -63,23 +58,8 @@ void control_task() {
     static int current_speed = init_speed;
     static double barrier;
     static uint8_t left_analog = 0, right_analog = 0;
-    static cmd_item_t queue_cmd;
-    static cmd_t current_cmd = CMD_NONE;
 
     while (!Communication::is_exit_thread) {
-        distance = 1e9;
-        while (!commu.cmd_queue->empty()) {
-            commu.cmd_queue->pop(queue_cmd);
-            distance = queue_cmd.distance - 10;
-            cout << "distance:" << distance << endl;
-            if (distance >= 6) {
-                current_cmd = queue_cmd.command;
-            } else {
-                current_cmd = CMD_NONE;
-                distance = 1e9;
-            }
-        }
-
         servo.turn(1, 130);
         servo.turn(2, 90);
         left_sensor = ir.left();
@@ -89,36 +69,32 @@ void control_task() {
         barrier = current_speed * 0.085 + 10;
 #ifdef ENABLE_MOTOR
         if (distance <= barrier) {
-            if (current_cmd != CMD_NONE) {
+            if (Communication::sign_command != CMD_NONE) {
                 commu.halt_process();
-                clear_queue();
-                if (current_cmd == CMD_LEFT) {
+                if (Communication::sign_command == CMD_LEFT) {
                     motor.turn(-right_speed + 20, right_speed);
                     current_speed = init_speed;
-                    delay(40);
-                } else if (current_cmd == CMD_RIGHT) {
+                    delay(50);
+                } else if (Communication::sign_command == CMD_RIGHT) {
                     motor.turn(right_speed, -right_speed + 20);
                     current_speed = init_speed;
-                    delay(40);
-                } else if (current_cmd == CMD_HALT) {
+                    delay(50);
+                } else if (Communication::sign_command == CMD_HALT) {
                     motor.stop();
-                    clear_queue();
                     delay(3000);
-                    clear_queue();
                     motor.turn(init_speed, init_speed);
                     delay(300);
                     current_speed = init_speed;
-                    clear_queue();
-                } else if (current_cmd == CMD_TURN) {
+                } else if (Communication::sign_command == CMD_TURN) {
                     current_speed = init_speed;
-                } else if (current_cmd == CMD_GO) {
+                } else if (Communication::sign_command == CMD_GO) {
                     if (left_sensor == WALL)
                         motor.turn(right_speed, -right_speed + 20);
                     else
                         motor.turn(-right_speed + 20, right_speed);
                     current_speed = init_speed;
                 }
-                current_cmd = CMD_NONE;
+                Communication::sign_command = CMD_NONE;
                 clear_queue();
                 commu.continue_process();
             } else {
@@ -163,21 +139,14 @@ opencamera:
     cap.set(cv::CAP_PROP_FPS, 90);
 
     static int ret;
-    static uint32_t index = 0, indexx = 0;
     static cv::Mat frame;
     while (!Communication::is_exit_thread) {
         if (Communication::is_halt_process) continue;
         ret = cap.read(frame);
         if (!ret) continue;
-
-        // cv::imwrite("all_frame/run" + to_string(indexx++) + ".jpg", frame);
-
         sign_item_t sign_item = v.process(frame);
-        if (sign_item.cropped == nullptr || sign_item.center == nullptr) continue;
-
-        // cv::imwrite("frame_data/frame" + to_string(index++) + ".jpg", *(sign_item.cropped));
-        // cout << "founded" << endl;
-        commu.sign_queue->push(sign_item);
+        if (sign_item.cropped != nullptr && sign_item.center != nullptr)
+            commu.sign_queue->push(sign_item);
     }
     cap.release();
 
@@ -191,39 +160,32 @@ void model_task() {
             sign_item_t sign;
             commu.sign_queue->pop(sign);
 
-            // cv::imwrite("test.jpg", *sign);
             predict_t p = m.evaluate(*sign.cropped);
             sign.cropped->release();
+            Communication::sign_distance = v.distance(*sign.center) - 10;
             cout << "model predict: " << p.possibility << " " << p.index << endl;
-            float distance = v.distance(*sign.center);
-            cmd_item_t cmd;
-            cmd.distance = distance;
+            cout << "distance: " << Communication::sign_distance << endl;
 
             if (!Communication::is_halt_process && p.possibility >= 0.9f) {
                 switch (p.index) {
                     case SIGN_STOP_LINE:
                     case SIGN_STOP_PIC:
-                        cmd.command = CMD_HALT;
-                        commu.cmd_queue->push(cmd);
+                        Communication::sign_command = CMD_HALT;
                         break;
                     case SIGN_GO_LEFT:
                     case SIGN_GO_RIGHT:
                     case SIGN_NO_LEFT:
                     case SIGN_NO_RIGHT:
-                        cmd.command = CMD_GO;
-                        commu.cmd_queue->push(cmd);
+                        Communication::sign_command = CMD_GO;
                         break;
                     case SIGN_ONLY_LEFT:
-                        cmd.command = CMD_LEFT;
-                        commu.cmd_queue->push(cmd);
+                        Communication::sign_command = CMD_LEFT;
                         break;
                     case SIGN_ONLY_RIGHT:
-                        cmd.command = CMD_RIGHT;
-                        commu.cmd_queue->push(cmd);
+                        Communication::sign_command = CMD_RIGHT;
                         break;
                     case SIGN_NOT_GO:
-                        cmd.command = CMD_TURN;
-                        commu.cmd_queue->push(cmd);
+                        Communication::sign_command = CMD_TURN;
                         break;
                     case SIGN_NO_STOP:
                     case SIGN_ONLY_GO:
@@ -231,7 +193,8 @@ void model_task() {
                         break;
                 }
             } else {
-                clear_queue();
+                Communication::sign_command = CMD_NONE;
+                Communication::sign_distance = 1e9;
                 cout << "Halt" << endl;
             }
         }

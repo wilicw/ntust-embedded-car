@@ -21,11 +21,6 @@ typedef struct {
     cv::Point* center;
 } sign_item_t;
 
-typedef struct {
-    cmd_t command;
-    float distance;
-} cmd_item_t;
-
 class Communication {
    public:
     Communication();
@@ -33,9 +28,10 @@ class Communication {
     void continue_process();
     void exit_process();
     boost::lockfree::queue<sign_item_t, boost::lockfree::fixed_sized<true>>* sign_queue;
-    boost::lockfree::queue<cmd_item_t, boost::lockfree::fixed_sized<true>>* cmd_queue;
     volatile static atomic<bool> is_exit_thread;
     volatile static atomic<bool> is_halt_process;
+    static atomic<cmd_t> sign_command;
+    static atomic<float> sign_distance;
 };
 
 #endif  // DRIVER_COMMUNICATION_H
