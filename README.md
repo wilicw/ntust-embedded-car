@@ -1,6 +1,6 @@
 # 智慧運輸與嵌入式系統課程
 
-a.k.a. 臺科智障車車 implement the traffic sign recognition in with OpenCV, TF-Lite via C++.
+a.k.a. 臺科智障車車 implement the traffic sign recognition with OpenCV, TF-Lite via C++.
 
 # Overview
 
