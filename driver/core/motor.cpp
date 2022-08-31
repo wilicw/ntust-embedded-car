@@ -9,7 +9,7 @@ void Motor::turn(int left, int right) {
     _left = left;
     _right = right;
     data[1] = left < 0 ? 0 : 1;
-    data[3] = right < 0 ? 0 : 1;
+    data[3] = right < 0 ? 1 : 0;
 
     data[2] = left < 0 ? -left : left;
     data[4] = right < 0 ? -right : right;

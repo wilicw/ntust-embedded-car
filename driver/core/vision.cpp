@@ -29,7 +29,7 @@ float Vision::distance(cv::Point center) {
 
 sign_item_t Vision::process(cv::Mat image) {
 #ifdef DEBUG
-    cv::Mat cloned = image.clone();
+    cv::Mat cloned = image;
 #endif
     const static sign_item_t empty_result = {nullptr, nullptr};
 
@@ -104,7 +104,6 @@ vector<cv::Mat> Vision::cvt_HSV(cv::Mat image) {
 }
 
 pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_channels, cv::Mat& out_hsv) {
-
     cv::Mat img_H_channel = HSV_channels[0];
     cv::Mat img_S_channel = HSV_channels[1];
     cv::Mat img_V_channel = HSV_channels[2];
@@ -137,7 +136,6 @@ pair<cv::Rect, cv::Point> Vision::RED_CH(cv::Mat image, vector<cv::Mat> HSV_chan
 }
 
 pair<cv::Rect, cv::Point> Vision::BLUE_CH(cv::Mat image, vector<cv::Mat> HSV_channels) {
-
     cv::Mat img_H_channel = HSV_channels[0];
     cv::Mat img_S_channel = HSV_channels[1];
     cv::Mat img_V_channel = HSV_channels[2];
@@ -280,7 +278,6 @@ pair<cv::Rect, cv::Point> Vision::WHITE_CH(cv::Mat image, vector<cv::Mat> HSV_ch
 
     cv::inRange(White_filled_img, 120, 130, White_filled_img);
 
-
     //------BxW to find contours------
     cv::Mat BandW;
     cv::bitwise_and(White_filled_img, Black_filled_img, BandW);
@@ -345,7 +342,6 @@ pair<cv::Rect, cv::Point> Vision::find_rectangle(vector<vector<cv::Point>> hulls
     cv::Point contour_center;
 
     for (auto& hull : hulls) {
-
         //find rectangle
         cv::Rect this_rect = cv::boundingRect(hull);
         if (this_rect.height < 100 && this_rect.width < 100) {

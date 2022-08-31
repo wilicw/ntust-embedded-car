@@ -30,8 +30,8 @@ class Communication {
     boost::lockfree::queue<sign_item_t, boost::lockfree::fixed_sized<true>>* sign_queue;
     volatile static atomic<bool> is_exit_thread;
     volatile static atomic<bool> is_halt_process;
-    static atomic<cmd_t> sign_command;
-    static atomic<float> sign_distance;
+    atomic<cmd_t> sign_command;
+    atomic<float> sign_distance;
 };
 
 #endif  // DRIVER_COMMUNICATION_H

@@ -48,77 +48,82 @@ void clear_queue() {
 
 void control_task() {
     static int left_sensor, right_sensor;
-    static double distance;
+    static double sign_distance;
+    static double ur_distance;
 
-    const static int right_speed = 180;
+    const static int right_speed = 150;
     const static int turning_speed = 120;
     const static int forward_speed = 50;
     const static float turning_scale = 0.9;
     const static int init_speed = 50;
     static int current_speed = init_speed;
     static double barrier;
+    static uint32_t last_time_halt = 0;
     static uint8_t left_analog = 0, right_analog = 0;
 
     while (!Communication::is_exit_thread) {
-        servo.turn(1, 130);
-        servo.turn(2, 90);
         left_sensor = ir.left();
         right_sensor = ir.right();
-        distance = min(ur.distance(), distance);
+        ur_distance = ur.distance();
+        sign_distance = commu.sign_distance;
 
         barrier = current_speed * 0.085 + 10;
 #ifdef ENABLE_MOTOR
-        if (distance <= barrier) {
-            if (Communication::sign_command != CMD_NONE) {
-                commu.halt_process();
-                if (Communication::sign_command == CMD_LEFT) {
-                    motor.turn(-right_speed + 20, right_speed);
-                    current_speed = init_speed;
-                    delay(50);
-                } else if (Communication::sign_command == CMD_RIGHT) {
-                    motor.turn(right_speed, -right_speed + 20);
-                    current_speed = init_speed;
-                    delay(50);
-                } else if (Communication::sign_command == CMD_HALT) {
+        if (sign_distance <= barrier) {
+            commu.halt_process();
+            if (commu.sign_command == CMD_LEFT) {
+                motor.turn(-right_speed + 20, right_speed);
+                current_speed = init_speed;
+                delay(180);
+            } else if (commu.sign_command == CMD_RIGHT) {
+                motor.turn(right_speed, -right_speed + 20);
+                current_speed = init_speed;
+                delay(180);
+            } else if (commu.sign_command == CMD_HALT) {
+                if (micros() - last_time_halt >= 1000 * 1000) {
                     motor.stop();
                     delay(3000);
                     motor.turn(init_speed, init_speed);
-                    delay(300);
-                    current_speed = init_speed;
-                } else if (Communication::sign_command == CMD_TURN) {
-                    current_speed = init_speed;
-                } else if (Communication::sign_command == CMD_GO) {
-                    if (left_sensor == WALL)
-                        motor.turn(right_speed, -right_speed + 20);
-                    else
-                        motor.turn(-right_speed + 20, right_speed);
+                    delay(400);
+                    last_time_halt = micros();
                     current_speed = init_speed;
                 }
-                Communication::sign_command = CMD_NONE;
-                clear_queue();
-                commu.continue_process();
-            } else {
+            } else if (commu.sign_command == CMD_TURN) {
+                current_speed = init_speed;
+            } else if (commu.sign_command == CMD_GO) {
                 if (left_sensor == WALL)
                     motor.turn(right_speed, -right_speed + 20);
                 else
                     motor.turn(-right_speed + 20, right_speed);
                 current_speed = init_speed;
             }
+            commu.sign_command = CMD_NONE;
+            commu.sign_distance = 1e9;
+            clear_queue();
+            commu.continue_process();
+        } else if (ur_distance <= barrier * 0.85) {
+            if (left_sensor == WALL)
+                motor.turn(right_speed, -right_speed + 20);
+            else
+                motor.turn(-right_speed + 20, right_speed);
+            current_speed = init_speed;
+            cout << "Turning" << endl;
         } else if (!(left_sensor ^ right_sensor)) {
             left_analog = right_analog = 0;
             if (current_speed <= forward_speed) current_speed += 5;
             motor.turn(current_speed, current_speed);
+            cout << "Forward" << endl;
         } else if (left_sensor == WALL) {
             if (left_analog < 255) left_analog += 5;
             right_analog = 0;
             motor.turn(
                 turning_speed * turning_scale,
-                turning_speed * (turning_scale - 0.2 - left_analog / 255.0));
+                turning_speed * (turning_scale - 0.15 - left_analog / 255.0));
         } else if (right_sensor == WALL) {
             if (right_analog < 255) right_analog += 5;
             left_analog = 0;
             motor.turn(
-                turning_speed * (turning_scale - 0.2 - right_analog / 255.0),
+                turning_speed * (turning_scale - 0.15 - right_analog / 255.0),
                 turning_speed * turning_scale);
         }
 #endif
@@ -162,39 +167,46 @@ void model_task() {
 
             predict_t p = m.evaluate(*sign.cropped);
             sign.cropped->release();
-            Communication::sign_distance = v.distance(*sign.center) - 10;
+            float distance = v.distance(*sign.center) - 12;
             cout << "model predict: " << p.possibility << " " << p.index << endl;
-            cout << "distance: " << Communication::sign_distance << endl;
+            cout << "distance: " << distance << endl;
 
-            if (!Communication::is_halt_process && p.possibility >= 0.9f) {
+            if (!Communication::is_halt_process && p.possibility >= 0.9f && commu.sign_distance > 5) {
                 switch (p.index) {
                     case SIGN_STOP_LINE:
                     case SIGN_STOP_PIC:
-                        Communication::sign_command = CMD_HALT;
+                        commu.sign_command = CMD_HALT;
+                        commu.sign_distance = distance - 8;
                         break;
                     case SIGN_GO_LEFT:
                     case SIGN_GO_RIGHT:
                     case SIGN_NO_LEFT:
                     case SIGN_NO_RIGHT:
-                        Communication::sign_command = CMD_GO;
+                        commu.sign_command = CMD_GO;
+                        commu.sign_distance = distance;
                         break;
                     case SIGN_ONLY_LEFT:
-                        Communication::sign_command = CMD_LEFT;
+                        commu.sign_command = CMD_LEFT;
+                        commu.sign_distance = distance;
                         break;
                     case SIGN_ONLY_RIGHT:
-                        Communication::sign_command = CMD_RIGHT;
+                        commu.sign_command = CMD_RIGHT;
+                        commu.sign_distance = distance;
                         break;
                     case SIGN_NOT_GO:
-                        Communication::sign_command = CMD_TURN;
+                        commu.sign_command = CMD_TURN;
+                        commu.sign_distance = distance;
                         break;
                     case SIGN_NO_STOP:
                     case SIGN_ONLY_GO:
                     default:
+                        commu.sign_command = CMD_NONE;
+                        commu.sign_distance = distance;
                         break;
                 }
             } else {
-                Communication::sign_command = CMD_NONE;
-                Communication::sign_distance = 1e9;
+                commu.sign_command = CMD_NONE;
+                commu.sign_distance = 1e9;
                 cout << "Halt" << endl;
             }
         }
